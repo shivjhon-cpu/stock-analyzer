@@ -85,9 +85,9 @@ def bar_calendar_date(ts: pd.Timestamp) -> str:
 
 def predict_next_7_days(close: pd.Series) -> list[float]:
     """
-    Fit a simple linear trend on historical closes and forecast 7 future points.
+    Fit a simple linear trend on only the latest 30 closes and forecast 7 points.
     """
-    closes = close.dropna().to_numpy(dtype=float)
+    closes = close.dropna().tail(30).to_numpy(dtype=float)
     x_train = np.arange(len(closes), dtype=float).reshape(-1, 1)
     y_train = closes
 
