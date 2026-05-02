@@ -12,6 +12,7 @@ import pandas as pd
 import yfinance as yf
 from flask import Flask, jsonify, render_template, request
 from flask_cors import CORS
+from sklearn.linear_model import LinearRegression
 
 app = Flask(__name__)
 CORS(app)
@@ -82,6 +83,22 @@ def bar_calendar_date(ts: pd.Timestamp) -> str:
     return t.strftime("%Y-%m-%d")
 
 
+def predict_next_7_days(close: pd.Series) -> list[float]:
+    """
+    Fit a simple linear trend on historical closes and forecast 7 future points.
+    """
+    closes = close.dropna().to_numpy(dtype=float)
+    x_train = np.arange(len(closes), dtype=float).reshape(-1, 1)
+    y_train = closes
+
+    model = LinearRegression()
+    model.fit(x_train, y_train)
+
+    x_future = np.arange(len(closes), len(closes) + 7, dtype=float).reshape(-1, 1)
+    preds = model.predict(x_future)
+    return [round(float(p), 4) for p in preds]
+
+
 @app.route("/api/health", methods=["GET"])
 def health() -> Any:
     return jsonify({"ok": True})
@@ -139,6 +156,14 @@ def analyze() -> Any:
         ), 422
 
     decision = decide(close, ema50, rsi14, vol, vol_avg_10)
+    predicted_closes = predict_next_7_days(df["Close"])
+    next_7_dates = pd.bdate_range(
+        start=pd.Timestamp(df.index[-1]) + pd.Timedelta(days=1), periods=7
+    )
+    predicted_prices = [
+        {"date": bar_calendar_date(d), "predicted_close": p}
+        for d, p in zip(next_7_dates, predicted_closes)
+    ]
 
     ohlcv: list[dict[str, Any]] = []
     for idx, row in df.iterrows():
@@ -164,6 +189,7 @@ def analyze() -> Any:
             "rsi_14": round(rsi14, 4),
             "latest_volume": int(vol),
             "avg_volume_10": int(vol_avg_10),
+            "predicted_prices_7d": predicted_prices,
             "ohlcv": ohlcv,
         }
     )

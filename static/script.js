@@ -29,9 +29,11 @@ const chartSymbol = document.getElementById("chartSymbol");
 const chartPane = document.getElementById("chartPane");
 const chartContainer = document.getElementById("chartContainer");
 const chartFallback = document.getElementById("chartFallback");
+const chartForecastLegend = document.getElementById("chartForecastLegend");
 const rsiValue = document.getElementById("rsiValue");
 const emaValue = document.getElementById("emaValue");
 const volumeValue = document.getElementById("volumeValue");
+const predictionList = document.getElementById("predictionList");
 
 let chartInstance = null;
 let resizeObserver = null;
@@ -63,6 +65,29 @@ function formatVolumeInt(v) {
   return Number(v).toLocaleString("en-IN", { maximumFractionDigits: 0 });
 }
 
+function renderPredictions(predictions) {
+  if (!predictionList) return;
+
+  if (!Array.isArray(predictions) || !predictions.length) {
+    predictionList.innerHTML =
+      '<p class="prediction-empty">No prediction data available.</p>';
+    return;
+  }
+
+  predictionList.innerHTML = predictions
+    .map((item) => {
+      const date = item?.date || "--";
+      const predictedClose = formatNumber(item?.predicted_close);
+      return `
+        <div class="prediction-row">
+          <span class="prediction-date">${date}</span>
+          <span class="prediction-value">${predictedClose}</span>
+        </div>
+      `;
+    })
+    .join("");
+}
+
 function showChartFallback(text) {
   chartFallback.textContent = text;
   chartFallback.classList.remove("is-hidden");
@@ -70,6 +95,11 @@ function showChartFallback(text) {
 
 function hideChartFallback() {
   chartFallback.classList.add("is-hidden");
+}
+
+function setForecastLegendVisible(visible) {
+  if (!chartForecastLegend) return;
+  chartForecastLegend.hidden = !visible;
 }
 
 function disposeChart() {
@@ -100,6 +130,25 @@ function candlesFromOhlcv(ohlcv) {
   return [...byDay.values()].sort((a, b) => a.time.localeCompare(b.time));
 }
 
+function lineFromPredictions(candles, predictions) {
+  if (!Array.isArray(candles) || !candles.length) return [];
+  if (!Array.isArray(predictions) || !predictions.length) return [];
+
+  const lastCandle = candles[candles.length - 1];
+  const forecastPoints = predictions
+    .filter((item) => item && item.date)
+    .map((item) => ({
+      time: item.date,
+      value: Number(item.predicted_close),
+    }))
+    .filter((p) => Number.isFinite(p.value));
+
+  if (!forecastPoints.length) return [];
+
+  // Anchor the line from the latest known close into forecasted prices.
+  return [{ time: lastCandle.time, value: Number(lastCandle.close) }, ...forecastPoints];
+}
+
 function isDashboardVisible() {
   return Boolean(appShell && !appShell.hidden);
 }
@@ -108,6 +157,7 @@ function revealDashboard() {
   if (loginScreen) loginScreen.hidden = true;
   if (appShell) appShell.hidden = false;
   disposeChart();
+  setForecastLegendVisible(false);
   showChartFallback(INITIAL_FALLBACK);
   if (pinInput) {
     pinInput.value = "";
@@ -153,16 +203,18 @@ function refreshChartDimensions() {
   chartInstance.applyOptions({ width: w, height: h });
 }
 
-function renderChart(ohlcv) {
+function renderChart(ohlcv, predictions = []) {
   disposeChart();
 
   const candles = candlesFromOhlcv(ohlcv);
   if (!candles.length) {
+    setForecastLegendVisible(false);
     showChartFallback("No OHLC rows returned — cannot render the chart.");
     return;
   }
 
   if (!LC || typeof LC.createChart !== "function") {
+    setForecastLegendVisible(false);
     showChartFallback(
       "TradingView Lightweight Charts failed to load. Check your network/CDN.",
     );
@@ -225,6 +277,23 @@ function renderChart(ohlcv) {
   });
 
   series.setData(candles);
+
+  const forecastLine = lineFromPredictions(candles, predictions);
+  if (forecastLine.length > 1) {
+    const lineSeries = chartInstance.addLineSeries({
+      color: "#7aa2ff",
+      lineWidth: 2,
+      lineStyle: 2,
+      priceLineVisible: false,
+      lastValueVisible: true,
+      crosshairMarkerVisible: true,
+    });
+    lineSeries.setData(forecastLine);
+    setForecastLegendVisible(true);
+  } else {
+    setForecastLegendVisible(false);
+  }
+
   chartInstance.timeScale().fitContent();
 
   resizeObserver = new ResizeObserver(() => {
@@ -248,6 +317,7 @@ stockSearchForm.addEventListener("submit", async (event) => {
   submitButton.textContent = "Loading…";
 
   disposeChart();
+  setForecastLegendVisible(false);
   showChartFallback("Loading chart…");
 
   try {
@@ -264,6 +334,7 @@ stockSearchForm.addEventListener("submit", async (event) => {
       rsiValue.textContent = "--";
       emaValue.textContent = "--";
       volumeValue.textContent = "--";
+      renderPredictions([]);
       showChartFallback(msg);
       return;
     }
@@ -276,8 +347,9 @@ stockSearchForm.addEventListener("submit", async (event) => {
     rsiValue.textContent = formatNumber(data.rsi_14);
     emaValue.textContent = formatNumber(data.ema_50);
     volumeValue.textContent = `${formatVolumeInt(data.latest_volume)} (10d avg ${formatVolumeInt(data.avg_volume_10)})`;
+    renderPredictions(data.predicted_prices_7d);
 
-    renderChart(data.ohlcv);
+    renderChart(data.ohlcv, data.predicted_prices_7d);
   } catch (err) {
     setDecisionClass("WAIT & WATCH");
     decisionStatus.textContent = "ERROR";
@@ -287,6 +359,7 @@ stockSearchForm.addEventListener("submit", async (event) => {
     rsiValue.textContent = "--";
     emaValue.textContent = "--";
     volumeValue.textContent = "--";
+    renderPredictions([]);
     showChartFallback(
       "Could not load data. Ensure the Flask API is running and try again.",
     );

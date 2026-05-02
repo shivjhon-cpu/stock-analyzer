@@ -301,6 +301,12 @@ body {
   margin-bottom: 14px;
 }
 
+.chart-header-meta {
+  display: grid;
+  justify-items: end;
+  gap: 6px;
+}
+
 .chart-header h3 {
   font-size: 1rem;
   font-weight: 600;
@@ -309,6 +315,20 @@ body {
 .chart-header span {
   color: var(--text-secondary);
   font-size: 0.86rem;
+}
+
+.forecast-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #b7c7ff;
+  font-size: 0.8rem;
+}
+
+.forecast-legend-dot {
+  width: 18px;
+  height: 0;
+  border-top: 2px dashed #7aa2ff;
 }
 
 .chart-pane {
@@ -373,6 +393,60 @@ body {
   font-weight: 600;
 }
 
+.forecast-card {
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: rgba(10, 16, 35, 0.75);
+  padding: 18px;
+}
+
+.forecast-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.forecast-header h3 {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.forecast-header span {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.prediction-list {
+  display: grid;
+  gap: 8px;
+}
+
+.prediction-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.prediction-date {
+  color: var(--text-secondary);
+  font-size: 0.86rem;
+}
+
+.prediction-value {
+  font-weight: 600;
+}
+
+.prediction-empty {
+  color: #8f9abc;
+  font-size: 0.9rem;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -396,6 +470,16 @@ body {
   }
 
   .chart-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .chart-header-meta {
+    width: 100%;
+    justify-items: start;
+  }
+
+  .forecast-header {
     flex-direction: column;
     align-items: flex-start;
   }
