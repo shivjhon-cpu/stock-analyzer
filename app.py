@@ -145,6 +145,8 @@ def analyze() -> Any:
     df = df.dropna(how="any")
 
     df["EMA50"] = ema(df["Close"], 50)
+    df["SMA10"] = df["Close"].rolling(window=10, min_periods=10).mean()
+    df["SMA20"] = df["Close"].rolling(window=20, min_periods=20).mean()
     df["RSI14"] = rsi_wilder(df["Close"], 14)
     df["VolAvg10"] = df["Volume"].rolling(window=10, min_periods=10).mean()
 
@@ -152,10 +154,12 @@ def analyze() -> Any:
     close = float(last["Close"])
     vol = float(last["Volume"])
     ema50 = float(last["EMA50"])
+    sma10 = float(last["SMA10"])
+    sma20 = float(last["SMA20"])
     rsi14 = float(last["RSI14"])
     vol_avg_10 = float(last["VolAvg10"])
 
-    if any(math.isnan(x) for x in (ema50, rsi14, vol_avg_10)):
+    if any(math.isnan(x) for x in (ema50, sma10, sma20, rsi14, vol_avg_10)):
         return jsonify(
             {
                 "ok": False,
@@ -168,6 +172,14 @@ def analyze() -> Any:
         predicted_closes = predict_next_7_days(df["Close"])
     except ValueError as e:
         return jsonify({"ok": False, "error": str(e)}), 422
+
+    pivot = (float(last["High"]) + float(last["Low"]) + float(last["Close"])) / 3.0
+    s1 = (2.0 * pivot) - float(last["High"])
+    r1 = (2.0 * pivot) - float(last["Low"])
+    s2 = pivot - (float(last["High"]) - float(last["Low"]))
+    r2 = pivot + (float(last["High"]) - float(last["Low"]))
+    s3 = float(last["Low"]) - 2.0 * (float(last["High"]) - pivot)
+    r3 = float(last["High"]) + 2.0 * (pivot - float(last["Low"]))
     next_7_dates = pd.bdate_range(
         start=pd.Timestamp(df.index[-1]) + pd.Timedelta(days=1), periods=7
     )
@@ -197,9 +209,22 @@ def analyze() -> Any:
             "note": decision_note(decision),
             "latest_close": round(close, 4),
             "ema_50": round(ema50, 4),
+            "sma_10": round(sma10, 4),
+            "sma_20": round(sma20, 4),
             "rsi_14": round(rsi14, 4),
             "latest_volume": int(vol),
             "avg_volume_10": int(vol_avg_10),
+            "pivot_point": round(pivot, 4),
+            "support_levels": {
+                "s1": round(s1, 4),
+                "s2": round(s2, 4),
+                "s3": round(s3, 4),
+            },
+            "resistance_levels": {
+                "r1": round(r1, 4),
+                "r2": round(r2, 4),
+                "r3": round(r3, 4),
+            },
             "predicted_prices_7d": predicted_prices,
             "ohlcv": ohlcv,
         }

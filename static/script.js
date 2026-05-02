@@ -36,6 +36,15 @@ const rsiValue = document.getElementById("rsiValue");
 const emaValue = document.getElementById("emaValue");
 const volumeValue = document.getElementById("volumeValue");
 const predictionList = document.getElementById("predictionList");
+const sma10Value = document.getElementById("sma10Value");
+const sma20Value = document.getElementById("sma20Value");
+const pivotValue = document.getElementById("pivotValue");
+const s1Value = document.getElementById("s1Value");
+const s2Value = document.getElementById("s2Value");
+const s3Value = document.getElementById("s3Value");
+const r1Value = document.getElementById("r1Value");
+const r2Value = document.getElementById("r2Value");
+const r3Value = document.getElementById("r3Value");
 
 let chartInstance = null;
 let resizeObserver = null;
@@ -89,6 +98,22 @@ function renderPredictions(predictions) {
       `;
     })
     .join("");
+}
+
+function setTechnicalIndicators(data = {}) {
+  if (sma10Value) sma10Value.textContent = formatNumber(data.sma_10);
+  if (sma20Value) sma20Value.textContent = formatNumber(data.sma_20);
+  if (pivotValue) pivotValue.textContent = formatNumber(data.pivot_point);
+
+  const supports = data.support_levels || {};
+  const resistances = data.resistance_levels || {};
+
+  if (s1Value) s1Value.textContent = formatNumber(supports.s1);
+  if (s2Value) s2Value.textContent = formatNumber(supports.s2);
+  if (s3Value) s3Value.textContent = formatNumber(supports.s3);
+  if (r1Value) r1Value.textContent = formatNumber(resistances.r1);
+  if (r2Value) r2Value.textContent = formatNumber(resistances.r2);
+  if (r3Value) r3Value.textContent = formatNumber(resistances.r3);
 }
 
 function showChartFallback(text) {
@@ -339,6 +364,7 @@ stockSearchForm.addEventListener("submit", async (event) => {
       rsiValue.textContent = "--";
       emaValue.textContent = "--";
       volumeValue.textContent = "--";
+      setTechnicalIndicators({});
       renderPredictions([]);
       showChartFallback(msg);
       return;
@@ -352,6 +378,7 @@ stockSearchForm.addEventListener("submit", async (event) => {
     rsiValue.textContent = formatNumber(data.rsi_14);
     emaValue.textContent = formatNumber(data.ema_50);
     volumeValue.textContent = `${formatVolumeInt(data.latest_volume)} (10d avg ${formatVolumeInt(data.avg_volume_10)})`;
+    setTechnicalIndicators(data);
     renderPredictions(data.predicted_prices_7d);
 
     renderChart(data.ohlcv, data.predicted_prices_7d);
@@ -364,6 +391,7 @@ stockSearchForm.addEventListener("submit", async (event) => {
     rsiValue.textContent = "--";
     emaValue.textContent = "--";
     volumeValue.textContent = "--";
+    setTechnicalIndicators({});
     renderPredictions([]);
     showChartFallback(
       "Could not load data. Ensure the Flask API is running and try again.",

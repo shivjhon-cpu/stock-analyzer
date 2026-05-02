@@ -447,6 +447,47 @@ body {
   font-size: 0.9rem;
 }
 
+.tech-indicators-card {
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: rgba(10, 16, 35, 0.75);
+  padding: 18px;
+}
+
+.tech-table-wrap {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.tech-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tech-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 0.9rem;
+}
+
+.tech-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.tech-table td:last-child {
+  text-align: right;
+  font-weight: 600;
+}
+
+.support-row td {
+  color: #8ff0b2;
+}
+
+.resistance-row td {
+  color: #ff99a8;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
