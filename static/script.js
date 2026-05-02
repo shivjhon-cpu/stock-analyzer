@@ -42,7 +42,7 @@ let resizeObserver = null;
 
 const INITIAL_FALLBACK =
   "Enter a ticker and analyze to load the candlestick chart.";
-const FORECAST_MODEL_LABEL = "AI Forecast (Random Forest)";
+const FORECAST_MODEL_LABEL = "EMA Momentum Projection";
 
 const CANDLE_UP = "#17c964";
 const CANDLE_DOWN = "#ff4d67";

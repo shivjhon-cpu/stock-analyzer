@@ -12,7 +12,6 @@ import pandas as pd
 import yfinance as yf
 from flask import Flask, jsonify, render_template, request
 from flask_cors import CORS
-from sklearn.ensemble import RandomForestRegressor
 
 app = Flask(__name__)
 CORS(app)
@@ -83,69 +82,27 @@ def bar_calendar_date(ts: pd.Timestamp) -> str:
     return t.strftime("%Y-%m-%d")
 
 
-def predict_next_7_days(close: pd.Series, volume: pd.Series) -> list[float]:
+def predict_next_7_days(close: pd.Series) -> list[float]:
     """
-    Train a Random Forest on the latest 60-90 sessions using lagged close/volume
-    features, then recursively forecast 7 days ahead.
+    Project 7 days using EMA momentum:
+    - daily slope is (EMA5 - EMA15)
+    - slope decays by 10% each projected day
     """
-    recent = (
-        pd.DataFrame({"Close": close.astype(float), "Volume": volume.astype(float)})
-        .dropna(how="any")
-        .tail(90)
-        .copy()
-    )
-    if len(recent) < 60:
-        raise ValueError("Need at least 60 sessions for Random Forest forecasting.")
+    close_series = close.dropna().astype(float)
+    if len(close_series) < 20:
+        raise ValueError("Need at least 20 sessions for EMA momentum projection.")
 
-    lag_days = 5
-    for lag in range(1, lag_days + 1):
-        recent[f"close_lag_{lag}"] = recent["Close"].shift(lag)
-        recent[f"volume_lag_{lag}"] = recent["Volume"].shift(lag)
+    ema_5 = close_series.ewm(span=5, adjust=False).mean()
+    ema_15 = close_series.ewm(span=15, adjust=False).mean()
+    momentum_slope = float(ema_5.iloc[-1] - ema_15.iloc[-1])
 
-    feature_cols = [f"close_lag_{lag}" for lag in range(1, lag_days + 1)] + [
-        f"volume_lag_{lag}" for lag in range(1, lag_days + 1)
-    ]
-    train = recent.dropna(how="any")
-
-    model = RandomForestRegressor(
-        n_estimators=400,
-        max_depth=10,
-        min_samples_leaf=2,
-        random_state=42,
-        n_jobs=-1,
-    )
-    model.fit(train[feature_cols], train["Close"])
-
-    close_hist = recent["Close"].tolist()
-    vol_hist = recent["Volume"].tolist()
-
-    recent_closes_20 = close_hist[-20:]
-    support = float(min(recent_closes_20))
-    resistance = float(max(recent_closes_20))
-    range_width = max(resistance - support, support * 0.01)
-    clamp_padding = 0.12 * range_width
-
+    last_close = float(close_series.iloc[-1])
+    slope = momentum_slope
     predictions: list[float] = []
     for _ in range(7):
-        vol_baseline = float(np.median(vol_hist[-10:]))
-        if len(vol_hist) >= 5:
-            vol_trend = (vol_hist[-1] - vol_hist[-5]) / 4.0
-            projected_volume = max(0.0, vol_hist[-1] + vol_trend)
-            next_volume = (0.65 * vol_baseline) + (0.35 * projected_volume)
-        else:
-            next_volume = vol_baseline
-
-        row: dict[str, float] = {}
-        for lag in range(1, lag_days + 1):
-            row[f"close_lag_{lag}"] = float(close_hist[-lag])
-            row[f"volume_lag_{lag}"] = float(vol_hist[-lag])
-
-        pred = float(model.predict(pd.DataFrame([row], columns=feature_cols))[0])
-        pred = float(np.clip(pred, support - clamp_padding, resistance + clamp_padding))
-
-        predictions.append(round(pred, 4))
-        close_hist.append(pred)
-        vol_hist.append(next_volume)
+        last_close += slope
+        predictions.append(round(last_close, 4))
+        slope *= 0.9
 
     return predictions
 
@@ -208,7 +165,7 @@ def analyze() -> Any:
 
     decision = decide(close, ema50, rsi14, vol, vol_avg_10)
     try:
-        predicted_closes = predict_next_7_days(df["Close"], df["Volume"])
+        predicted_closes = predict_next_7_days(df["Close"])
     except ValueError as e:
         return jsonify({"ok": False, "error": str(e)}), 422
     next_7_dates = pd.bdate_range(
