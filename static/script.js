@@ -30,6 +30,8 @@ const chartPane = document.getElementById("chartPane");
 const chartContainer = document.getElementById("chartContainer");
 const chartFallback = document.getElementById("chartFallback");
 const chartForecastLegend = document.getElementById("chartForecastLegend");
+const chartForecastLegendText = document.getElementById("chartForecastLegendText");
+const forecastModelLabel = document.getElementById("forecastModelLabel");
 const rsiValue = document.getElementById("rsiValue");
 const emaValue = document.getElementById("emaValue");
 const volumeValue = document.getElementById("volumeValue");
@@ -40,6 +42,7 @@ let resizeObserver = null;
 
 const INITIAL_FALLBACK =
   "Enter a ticker and analyze to load the candlestick chart.";
+const FORECAST_MODEL_LABEL = "AI Forecast (Random Forest)";
 
 const CANDLE_UP = "#17c964";
 const CANDLE_DOWN = "#ff4d67";
@@ -303,6 +306,8 @@ function renderChart(ohlcv, predictions = []) {
 }
 
 initPinGate();
+if (chartForecastLegendText) chartForecastLegendText.textContent = FORECAST_MODEL_LABEL;
+if (forecastModelLabel) forecastModelLabel.textContent = FORECAST_MODEL_LABEL;
 
 stockSearchForm.addEventListener("submit", async (event) => {
   event.preventDefault();
