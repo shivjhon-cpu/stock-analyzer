@@ -1,0 +1,15 @@
+{
+  "name": "ट्रायंगल",
+  "short_name": "Triangle",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000080",
+  "theme_color": "#FFD700",
+  "icons": [
+    {
+      "src": "/static/icon.png"
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

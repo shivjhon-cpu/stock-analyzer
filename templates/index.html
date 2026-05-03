@@ -11,7 +11,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
-  </head>
+  </head><link rel="manifest" href="manifest.json">
   <body>
     <div class="login-screen" id="loginScreen" role="dialog" aria-labelledby="loginTitle">
       <div class="login-card">
@@ -37,7 +37,10 @@
         </form>
       </div>
     </div>
-
+    <link rel="manifest" href="/static/manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="apple-touch-icon" href="/static/icon.png">
     <div id="appShell" class="app-shell" hidden>
     <header class="app-header">
       <h1 class="app-title">Smart Stock Analyzer</h1>
