@@ -6,14 +6,11 @@
     <title>Smart Stock Analyzer</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-      <link rel="manifest" href="/static/manifest.json?v=2">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="manifest" href="/static/manifest.json?v=2">
     <meta name="mobile-web-app-capable" content="yes">
     <link rel="apple-touch-icon" href="/static/icon.png?v=2">
     <link rel="icon" type="image/png" href="/static/icon.png?v=2">
-
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
   </head>
   <body>
@@ -23,126 +20,100 @@
         <p class="login-subtitle">Private access · enter PIN to continue</p>
         <form class="login-form" id="pinLoginForm" autocomplete="off" novalidate>
           <label for="pinInput" class="login-label">PIN</label>
-          <input
-            id="pinInput"
-            name="pin"
-            class="login-input"
-            type="password"
-            inputmode="numeric"
-            maxlength="32"
-            placeholder="PIN"
-            required
-            aria-describedby="pinHint pinError"
-            aria-invalid="false"
-          />
+          <input id="pinInput" name="pin" class="login-input" type="password" inputmode="numeric" maxlength="32" placeholder="PIN" required />
           <p id="pinHint" class="login-hint">Authorized users only.</p>
           <p id="pinError" class="login-error" hidden role="alert">Incorrect PIN. Try again.</p>
           <button type="submit" class="login-submit" id="pinSubmitBtn">Unlock</button>
         </form>
       </div>
     </div>
-    <link rel="manifest" href="/static/manifest.json">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<link rel="apple-touch-icon" href="/static/icon.png">
+
     <div id="appShell" class="app-shell" hidden>
-    <header class="app-header">
-      <h1 class="app-title">Smart Stock Analyzer</h1>
-    </header>
+      <header class="app-header">
+        <h1 class="app-title">Smart Stock Analyzer</h1>
+      </header>
 
-    <main class="hero-section">
-      <section class="search-card" aria-label="Stock Search Panel">
-        <h2>Indian Stock Decision Dashboard</h2>
-        <p>Search an NSE/BSE stock to begin your Buy/Wait/Avoid analysis.</p>
+      <main class="hero-section">
+        <section class="search-card">
+          <h2>Indian Stock Decision Dashboard</h2>
+          <form class="search-form" id="stockSearchForm">
+            <input id="stockInput" name="stockInput" type="text" placeholder="e.g. RELIANCE, TCS, INFY" required />
+            <button type="submit">Analyze</button>
+          </form>
 
-        <form class="search-form" id="stockSearchForm">
-          <label for="stockInput" class="sr-only">Stock Symbol</label>
-          <input
-            id="stockInput"
-            name="stockInput"
-            type="text"
-            placeholder="e.g. RELIANCE, TCS, INFY"
-            autocomplete="off"
-            required
-          />
-          <button type="submit">Analyze</button>
-        </form>
+          <article class="result-card result-wait" id="resultCard">
+            <p class="result-label">Decision</p>
+            <p class="result-status" id="decisionStatus">WAIT & WATCH</p>
+            <p class="result-note" id="resultNote">Run analysis to view context.</p>
+          </article>
 
-        <article class="result-card result-wait" id="resultCard" aria-live="polite">
-          <p class="result-label">Decision</p>
-          <p class="result-status" id="decisionStatus">WAIT &amp; WATCH</p>
-          <p class="result-note" id="resultNote">
-            Run analysis to view a stock decision with indicator context.
-          </p>
-        </article>
-
-        <section class="chart-card" aria-label="Daily price chart">
-          <div class="chart-header">
-            <h3>1-Day Candlestick Chart</h3>
-            <div class="chart-header-meta">
-              <span id="chartForecastLegend" class="forecast-legend" hidden>
-                <span class="forecast-legend-dot" aria-hidden="true"></span>
-                <span id="chartForecastLegendText">EMA Momentum Projection</span>
-              </span>
+          <section class="chart-card">
+            <div class="chart-header">
+              <h3>1-Day Candlestick Chart</h3>
               <span id="chartSymbol">NSE/BSE Symbol</span>
             </div>
-          </div>
-          <div class="chart-pane" id="chartPane">
-            <div id="chartContainer" class="chart-container" aria-label="TradingView candlesticks"></div>
-            <p id="chartFallback" class="chart-fallback">
-              Enter a ticker and analyze to load the candlestick chart.
-            </p>
-          </div>
-        </section>
+            <div class="chart-pane" id="chartPane">
+              <div id="chartContainer" class="chart-container"></div>
+            </div>
+          </section>
 
-        <section class="indicators-grid" aria-label="Indicator Placeholders">
-          <article class="indicator-card">
-            <p class="indicator-title">RSI (14)</p>
-            <p class="indicator-value" id="rsiValue">--</p>
-          </article>
-          <article class="indicator-card">
-            <p class="indicator-title">50-Day EMA</p>
-            <p class="indicator-value" id="emaValue">--</p>
-          </article>
-          <article class="indicator-card">
-            <p class="indicator-title">Volume</p>
-            <p class="indicator-value" id="volumeValue">--</p>
-          </article>
-        </section>
+          <section class="indicators-grid">
+            <article class="indicator-card">
+              <p class="indicator-title">RSI (14)</p>
+              <p class="indicator-value" id="rsiValue">--</p>
+            </article>
+            <article class="indicator-card">
+              <p class="indicator-title">50-Day EMA</p>
+              <p class="indicator-value" id="emaValue">--</p>
+            </article>
+            <article class="indicator-card">
+              <p class="indicator-title">Volume</p>
+              <p class="indicator-value" id="volumeValue">--</p>
+            </article>
+          </section>
 
-        <section class="forecast-card" aria-label="7 day ema momentum projection">
-          <div class="forecast-header">
-            <h3>7-Day Price Prediction</h3>
-            <span id="forecastModelLabel">EMA Momentum Projection</span>
-          </div>
-          <div id="predictionList" class="prediction-list">
-            <p class="prediction-empty">Run analysis to view the next 7 predicted closes.</p>
-          </div>
-        </section>
+          <section class="forecast-card">
+            <div class="forecast-header">
+              <h3>7-Day Price Prediction</h3>
+              <span>EMA Momentum</span>
+            </div>
+            <div id="predictionList" class="prediction-list"></div>
+          </section>
 
-        <section class="tech-indicators-card" aria-label="Technical Indicators">
-          <div class="forecast-header">
-            <h3>Technical Indicators</h3>
-            <span>SMA & Pivot Levels</span>
-          </div>
-          <div class="tech-table-wrap">
-            <table class="tech-table" aria-label="SMA and support resistance levels">
-              <tbody id="techIndicatorsBody">
-                <tr><td>SMA 10</td><td id="sma10Value">--</td></tr>
-                <tr><td>SMA 20</td><td id="sma20Value">--</td></tr>
-                <tr><td>Pivot Point</td><td id="pivotValue">--</td></tr>
-                <tr class="support-row"><td>Support S1</td><td id="s1Value">--</td></tr>
-                <tr class="support-row"><td>Support S2</td><td id="s2Value">--</td></tr>
-                <tr class="support-row"><td>Support S3</td><td id="s3Value">--</td></tr>
-                <tr class="resistance-row"><td>Resistance R1</td><td id="r1Value">--</td></tr>
-                <tr class="resistance-row"><td>Resistance R2</td><td id="r2Value">--</td></tr>
-                <tr class="resistance-row"><td>Resistance R3</td><td id="r3Value">--</td></tr>
-              </tbody>
-            </table>
-          </div>
+          <section class="forecast-card" style="margin-top: 20px;">
+            <div class="forecast-header">
+              <h3>Prophet AI Forecast</h3>
+              <span id="sentimentLabel" style="padding: 4px 8px; border-radius: 4px; color: white; font-size: 0.8rem; font-weight: bold; background: #6c757d;">Checking...</span>
+            </div>
+            <div class="indicators-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
+              <article class="indicator-card" style="border-top: 3px solid #007bff;">
+                <p class="indicator-title">1-Month Target</p>
+                <p class="indicator-value" id="prophet1M" style="color: #007bff;">--</p>
+              </article>
+              <article class="indicator-card" style="border-top: 3px solid #28a745;">
+                <p class="indicator-title">3-Month Target</p>
+                <p class="indicator-value" id="prophet3M" style="color: #28a745;">--</p>
+              </article>
+            </div>
+            <p id="sentimentReason" style="font-size: 0.8rem; color: #888; margin-top: 10px; text-align: center;">AI analysis based on price patterns and news sentiment.</p>
+          </section>
+
+          <section class="tech-indicators-card">
+            <div class="forecast-header"><h3>Technical Indicators</h3></div>
+            <div class="tech-table-wrap">
+              <table class="tech-table">
+                <tbody id="techIndicatorsBody">
+                  <tr><td>SMA 10</td><td id="sma10Value">--</td></tr>
+                  <tr><td>SMA 20</td><td id="sma20Value">--</td></tr>
+                  <tr><td>Pivot Point</td><td id="pivotValue">--</td></tr>
+                  <tr class="support-row"><td>S1</td><td id="s1Value">--</td></tr>
+                  <tr class="resistance-row"><td>R1</td><td id="r1Value">--</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
         </section>
-      </section>
-    </main>
+      </main>
     </div>
 
     <script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
