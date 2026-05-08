@@ -4,6 +4,7 @@ Smart Stock Analyzer — lightweight Flask API for NSE daily data via yfinance.
 
 from __future__ import annotations
 
+import os
 import math
 from typing import Any
 
@@ -13,9 +14,9 @@ import yfinance as yf
 from flask import Flask, jsonify, render_template, request
 from flask_cors import CORS
 
-# --- नए इम्पोर्ट्स ---
 from prophet import Prophet
 from textblob import TextBlob
+import google.generativeai as genai
 
 app = Flask(__name__)
 CORS(app)
@@ -111,14 +112,12 @@ def predict_next_7_days(close: pd.Series) -> list[float]:
     return predictions
 
 
-# --- नया फंक्शन: Prophet प्रेडिक्शन (1 और 3 महीने) ---
+# --- Prophet प्रेडिक्शन (1 और 3 महीने) ---
 def get_prophet_targets(df: pd.DataFrame) -> dict:
     try:
-        # yfinance डेटाफ्रेम का इंडेक्स 'Date' होता है, उसे 'ds' और 'Close' को 'y' में बदलें
         prophet_df = df.reset_index()[['Date', 'Close']]
         prophet_df.columns = ['ds', 'y']
         
-        # Prophet को टाइमज़ोन से दिक्कत होती है, इसलिए टाइमज़ोन हटा दें
         if pd.api.types.is_datetime64tz_dtype(prophet_df['ds']):
             prophet_df['ds'] = prophet_df['ds'].dt.tz_localize(None)
 
@@ -128,8 +127,8 @@ def get_prophet_targets(df: pd.DataFrame) -> dict:
         future = model.make_future_dataframe(periods=90)
         forecast = model.predict(future)
         
-        target_1m = float(forecast['yhat'].iloc[-60]) # 90 दिन आगे गए, 60 कदम पीछे आए = 30 दिन
-        target_3m = float(forecast['yhat'].iloc[-1])  # आखिरी दिन = 90 दिन
+        target_1m = float(forecast['yhat'].iloc[-60])
+        target_3m = float(forecast['yhat'].iloc[-1])
         
         return {"target_1M": round(target_1m, 2), "target_3M": round(target_3m, 2)}
     except Exception as e:
@@ -137,26 +136,65 @@ def get_prophet_targets(df: pd.DataFrame) -> dict:
         return {"target_1M": None, "target_3M": None}
 
 
-# --- नया फंक्शन: मार्केट सेंटीमेंट एनालिसिस (News API के बिना) ---
-def get_sentiment(ticker_obj: yf.Ticker) -> dict:
+# --- 🚀 नया स्मार्ट मार्केट सेंटीमेंट एनालिसिस (Gemini AI + Fallback) ---
+def get_sentiment(ticker_obj: yf.Ticker, ticker_symbol: str) -> dict:
     try:
         news = ticker_obj.news
         if not news:
             return {"score": 0.0, "label": "NEUTRAL", "reason": "No recent news found."}
         
+        # सिर्फ हैडलाइन्स निकालें
+        headlines = [article.get('title', '') for article in news if article.get('title')]
+        if not headlines:
+            return {"score": 0.0, "label": "NEUTRAL", "reason": "Could not extract news titles."}
+        
+        # रेंडर से Gemini API Key लें
+        gemini_key = os.environ.get("GEMINI_API_KEY")
+        
+        if gemini_key:
+            try:
+                genai.configure(api_key=gemini_key)
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                
+                # Gemini को निर्देश
+                prompt = f"Act as a financial expert. Analyze these recent news headlines for {ticker_symbol}:\n"
+                prompt += "\n".join(f"- {h}" for h in headlines[:10]) # टॉप 10 ख़बरें
+                prompt += "\n\nProvide the overall market sentiment based ONLY on these headlines."
+                prompt += "\nIf there is news of a stock split, bonus, dividend, or major crash, highlight it."
+                prompt += "\nRespond strictly in this format on two lines:\n"
+                prompt += "Line 1: EXACTLY one word: POSITIVE, NEGATIVE, or NEUTRAL.\n"
+                prompt += "Line 2: A short one-sentence reason."
+
+                response = model.generate_content(prompt)
+                text_parts = [p.strip() for p in response.text.strip().split('\n') if p.strip()]
+                
+                if len(text_parts) >= 1:
+                    label_raw = text_parts[0].upper()
+                    reason = text_parts[1] if len(text_parts) > 1 else "AI analyzed the recent market news."
+                    
+                    if "POSITIVE" in label_raw:
+                        label = "POSITIVE (BULLISH)"
+                        score = 0.8
+                    elif "NEGATIVE" in label_raw:
+                        label = "NEGATIVE (BEARISH)"
+                        score = -0.8
+                    else:
+                        label = "NEUTRAL"
+                        score = 0.0
+                        
+                    return {"score": score, "label": label, "reason": reason[:150], "analyzed_articles": len(headlines)}
+            except Exception as api_err:
+                print(f"Gemini API error, using TextBlob fallback: {api_err}")
+
+        # अगर API फेल हो जाए या Key न मिले, तो TextBlob का इस्तेमाल करें (Fallback)
         polarity_sum = 0
         count = 0
-        for article in news:
-            title = article.get('title', '')
-            if title:
-                blob = TextBlob(title)
-                polarity_sum += blob.sentiment.polarity
-                count += 1
-        
-        if count == 0:
-            return {"score": 0.0, "label": "NEUTRAL", "reason": "Could not analyze news titles."}
+        for title in headlines:
+            blob = TextBlob(title)
+            polarity_sum += blob.sentiment.polarity
+            count += 1
             
-        avg_polarity = polarity_sum / count
+        avg_polarity = polarity_sum / count if count > 0 else 0.0
         
         if avg_polarity > 0.05:
             label = "POSITIVE (BULLISH)"
@@ -165,7 +203,8 @@ def get_sentiment(ticker_obj: yf.Ticker) -> dict:
         else:
             label = "NEUTRAL"
             
-        return {"score": round(avg_polarity, 4), "label": label, "analyzed_articles": count}
+        return {"score": round(avg_polarity, 4), "label": label, "reason": "Analyzed using basic NLP.", "analyzed_articles": count}
+
     except Exception as e:
         print(f"Sentiment analysis error: {e}")
         return {"score": 0.0, "label": "ERROR", "reason": str(e)}
@@ -186,7 +225,6 @@ def analyze() -> Any:
 
     try:
         t = yf.Ticker(ticker_symbol)
-        # Enough history for 50 EMA + RSI warmup + Prophet training
         hist = t.history(period="2y", interval="1d", auto_adjust=True)
     except Exception as e:
         return jsonify({"ok": False, "error": f"Failed to fetch data: {e!s}"}), 502
@@ -196,7 +234,6 @@ def analyze() -> Any:
             {"ok": False, "error": f"No price history returned for {ticker_symbol}."}
         ), 404
 
-    # Flatten possible MultiIndex columns from yfinance
     if isinstance(hist.columns, pd.MultiIndex):
         hist = hist.copy()
         hist.columns = hist.columns.droplevel(1)
@@ -238,9 +275,9 @@ def analyze() -> Any:
     except ValueError as e:
         return jsonify({"ok": False, "error": str(e)}), 422
 
-    # --- नए फीचर्स को कॉल करना ---
+    # --- नए AI फीचर्स को कॉल करना ---
     prophet_predictions = get_prophet_targets(hist)
-    sentiment_data = get_sentiment(t)
+    sentiment_data = get_sentiment(t, ticker_symbol) # यहाँ ticker_symbol भी पास किया है
 
     pivot = (float(last["High"]) + float(last["Low"]) + float(last["Close"])) / 3.0
     s1 = (2.0 * pivot) - float(last["High"])
@@ -270,7 +307,6 @@ def analyze() -> Any:
             }
         )
 
-    # JSON रिस्पॉन्स में नए डेटा पॉइंट्स जोड़े गए हैं
     return jsonify(
         {
             "ok": True,
@@ -296,8 +332,8 @@ def analyze() -> Any:
                 "r3": round(r3, 4),
             },
             "predicted_prices_7d": predicted_prices,
-            "prophet_targets": prophet_predictions,      # नया डेटा
-            "market_sentiment": sentiment_data,          # नया डेटा
+            "prophet_targets": prophet_predictions,      
+            "market_sentiment": sentiment_data,          
             "ohlcv": ohlcv,
         }
     )
