@@ -139,6 +139,27 @@
                 <tr class="resistance-row"><td>Resistance R3</td><td id="r3Value">--</td></tr>
               </tbody>
             </table>
+            <section class="forecast-card" style="margin-top: 20px;">
+  <div class="forecast-header">
+    <h3>Prophet AI Forecast</h3>
+    <span id="sentimentLabel" style="padding: 4px 8px; border-radius: 4px; color: white; font-size: 0.8rem; font-weight: bold; background: #6c757d;">Checking...</span>
+  </div>
+  
+  <div class="indicators-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px;">
+    <article class="indicator-card" style="border-top: 3px solid #007bff;">
+      <p class="indicator-title">1-Month Target</p>
+      <p class="indicator-value" id="prophet1M" style="color: #007bff;">--</p>
+    </article>
+    <article class="indicator-card" style="border-top: 3px solid #28a745;">
+      <p class="indicator-title">3-Month Target</p>
+      <p class="indicator-value" id="prophet3M" style="color: #28a745;">--</p>
+    </article>
+  </div>
+  
+  <p id="sentimentReason" style="font-size: 0.8rem; color: #888; margin-top: 10px; text-align: center;">
+    AI analysis based on price patterns and recent news sentiment.
+  </p>
+</section>
           </div>
         </section>
       </section>
