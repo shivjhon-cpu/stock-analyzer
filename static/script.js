@@ -1,14 +1,5 @@
-/**
- * Client-side gate for casual cloud hosting. Anyone can inspect this file —
- * rotate the PIN in source before deploying; swap to server-side auth for strong security.
- * @type {string}
- */
 const APP_ACCESS_PIN = "2026";
-
-/** Session persistence: survives refresh until browser tab/session ends. */
 const AUTH_SESSION_KEY = "ssa_pin_unlocked_v1";
-
-/** Same-origin API (Flask serves UI + /api); use empty string on PythonAnywhere. */
 const API_BASE = "";
 
 const LC = typeof window !== "undefined" ? window.LightweightCharts : null;
@@ -49,8 +40,7 @@ const r3Value = document.getElementById("r3Value");
 let chartInstance = null;
 let resizeObserver = null;
 
-const INITIAL_FALLBACK =
-  "Enter a ticker and analyze to load the candlestick chart.";
+const INITIAL_FALLBACK = "Enter a ticker and analyze to load the candlestick chart.";
 const FORECAST_MODEL_LABEL = "EMA Momentum Projection";
 
 const CANDLE_UP = "#17c964";
@@ -81,8 +71,7 @@ function renderPredictions(predictions) {
   if (!predictionList) return;
 
   if (!Array.isArray(predictions) || !predictions.length) {
-    predictionList.innerHTML =
-      '<p class="prediction-empty">No prediction data available.</p>';
+    predictionList.innerHTML = '<p class="prediction-empty">No prediction data available.</p>';
     return;
   }
 
@@ -143,7 +132,6 @@ function disposeChart() {
 
 function candlesFromOhlcv(ohlcv) {
   if (!Array.isArray(ohlcv) || !ohlcv.length) return [];
-  /** @type Map<string, { time: string, open: number, high: number, low: number, close: number }> */
   const byDay = new Map();
   for (const row of ohlcv) {
     if (!row || !row.date) continue;
@@ -172,8 +160,6 @@ function lineFromPredictions(candles, predictions) {
     .filter((p) => Number.isFinite(p.value));
 
   if (!forecastPoints.length) return [];
-
-  // Anchor the line from the latest known close into forecasted prices.
   return [{ time: lastCandle.time, value: Number(lastCandle.close) }, ...forecastPoints];
 }
 
@@ -237,15 +223,13 @@ function renderChart(ohlcv, predictions = []) {
   const candles = candlesFromOhlcv(ohlcv);
   if (!candles.length) {
     setForecastLegendVisible(false);
-    showChartFallback("No OHLC rows returned — cannot render the chart.");
+    showChartFallback("No OHLC rows returned - cannot render the chart.");
     return;
   }
 
   if (!LC || typeof LC.createChart !== "function") {
     setForecastLegendVisible(false);
-    showChartFallback(
-      "TradingView Lightweight Charts failed to load. Check your network/CDN.",
-    );
+    showChartFallback("TradingView Lightweight Charts failed to load.");
     return;
   }
 
@@ -281,4 +265,168 @@ function renderChart(ohlcv, predictions = []) {
     },
     crosshair: {
       vertLine: { color: "rgba(170,181,211,0.32)" },
-      horzLine: { color: "rgba(170,18
+      horzLine: { color: "rgba(170,181,211,0.32)" },
+    },
+    handleScroll: {
+      mouseWheel: true,
+      pressedMouseMove: true,
+      horzTouchDrag: true,
+      vertTouchDrag: false,
+    },
+    handleScale: {
+      mouseWheel: true,
+      pinch: true,
+      axisPressedMouseMove: { time: true, price: true },
+    },
+  });
+
+  const series = chartInstance.addCandlestickSeries({
+    upColor: CANDLE_UP,
+    downColor: CANDLE_DOWN,
+    borderVisible: false,
+    wickUpColor: CANDLE_UP,
+    wickDownColor: CANDLE_DOWN,
+  });
+
+  series.setData(candles);
+
+  const forecastLine = lineFromPredictions(candles, predictions);
+  if (forecastLine.length > 1) {
+    const lineSeries = chartInstance.addLineSeries({
+      color: "#7aa2ff",
+      lineWidth: 2,
+      lineStyle: 2,
+      priceLineVisible: false,
+      lastValueVisible: true,
+      crosshairMarkerVisible: true,
+    });
+    lineSeries.setData(forecastLine);
+    setForecastLegendVisible(true);
+  } else {
+    setForecastLegendVisible(false);
+  }
+
+  chartInstance.timeScale().fitContent();
+
+  resizeObserver = new ResizeObserver(() => {
+    refreshChartDimensions();
+  });
+  resizeObserver.observe(chartPane);
+}
+
+initPinGate();
+if (chartForecastLegendText) chartForecastLegendText.textContent = FORECAST_MODEL_LABEL;
+if (forecastModelLabel) forecastModelLabel.textContent = FORECAST_MODEL_LABEL;
+
+stockSearchForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  if (!isDashboardVisible()) return;
+
+  const symbol = stockInput.value.trim().toUpperCase();
+  if (!symbol) return;
+
+  const prevLabel = submitButton.textContent;
+  submitButton.disabled = true;
+  submitButton.textContent = "Loading...";
+
+  disposeChart();
+  setForecastLegendVisible(false);
+  showChartFallback("Loading chart...");
+
+  const p1m = document.getElementById('prophet1M');
+  const p3m = document.getElementById('prophet3M');
+  const sLabel = document.getElementById('sentimentLabel');
+  
+  if (p1m) p1m.textContent = "--";
+  if (p3m) p3m.textContent = "--";
+  if (sLabel) {
+      sLabel.textContent = "Checking...";
+      sLabel.style.background = "#6c757d";
+      sLabel.style.color = "#fff";
+  }
+
+  try {
+    const url = `${API_BASE}/api/analyze?ticker=${encodeURIComponent(symbol)}`;
+    const response = await fetch(url);
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok || !data.ok) {
+      const msg = data.error || `Request failed (${response.status})`;
+      setDecisionClass("WAIT & WATCH");
+      decisionStatus.textContent = "ERROR";
+      resultNote.textContent = msg;
+      chartSymbol.textContent = symbol;
+      rsiValue.textContent = "--";
+      emaValue.textContent = "--";
+      volumeValue.textContent = "--";
+      setTechnicalIndicators({});
+      renderPredictions([]);
+      showChartFallback(msg);
+      if (sLabel) {
+          sLabel.textContent = "ERROR";
+          sLabel.style.background = "#dc3545";
+      }
+      return;
+    }
+
+    setDecisionClass(data.decision);
+    decisionStatus.textContent = data.decision;
+    resultNote.textContent = data.note || "";
+    chartSymbol.textContent = `${data.ticker} (1D)`;
+
+    rsiValue.textContent = formatNumber(data.rsi_14);
+    emaValue.textContent = formatNumber(data.ema_50);
+    volumeValue.textContent = `${formatVolumeInt(data.latest_volume)} (10d avg ${formatVolumeInt(data.avg_volume_10)})`;
+    setTechnicalIndicators(data);
+    renderPredictions(data.predicted_prices_7d);
+
+    renderChart(data.ohlcv, data.predicted_prices_7d);
+
+    if (data.prophet_targets) {
+        if (p1m) p1m.textContent = "Rs. " + formatNumber(data.prophet_targets.target_1M);
+        if (p3m) p3m.textContent = "Rs. " + formatNumber(data.prophet_targets.target_3M);
+    } else {
+        if (p1m) p1m.textContent = "N/A";
+        if (p3m) p3m.textContent = "N/A";
+    }
+
+    if (data.market_sentiment) {
+        if (sLabel) {
+            sLabel.textContent = data.market_sentiment.label;
+            const mood = data.market_sentiment.label.toUpperCase();
+            if (mood.includes("POSITIVE") || mood.includes("BULLISH") || mood.includes("BUY")) {
+                sLabel.style.background = "#28a745"; 
+                sLabel.style.color = "#fff";
+            } else if (mood.includes("NEGATIVE") || mood.includes("BEARISH") || mood.includes("SELL")) {
+                sLabel.style.background = "#dc3545";
+                sLabel.style.color = "#fff";
+            } else {
+                sLabel.style.background = "#ffc107";
+                sLabel.style.color = "#000";
+            }
+        }
+    }
+
+  } catch (err) {
+    setDecisionClass("WAIT & WATCH");
+    decisionStatus.textContent = "ERROR";
+    resultNote.textContent = "Could not reach the backend. Is the Flask server running?";
+    chartSymbol.textContent = symbol;
+    rsiValue.textContent = "--";
+    emaValue.textContent = "--";
+    volumeValue.textContent = "--";
+    setTechnicalIndicators({});
+    renderPredictions([]);
+    showChartFallback("Could not load data. Try again.");
+    
+    if (sLabel) {
+        sLabel.textContent = "ERROR";
+        sLabel.style.background = "#6c757d";
+        sLabel.style.color = "#fff";
+    }
+  } finally {
+    submitButton.disabled = false;
+    submitButton.textContent = prevLabel;
+  }
+});
