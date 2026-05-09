@@ -4,7 +4,6 @@ import requests
 import os
 import pandas as pd
 
-# 'स्मार्ट ऑटो-फाइंडर' जो खुद एक्टिव AI मॉडल को खोज लेगा
 def get_ai_analysis(ticker, news_list, current_price, support, resistance):
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
@@ -31,14 +30,11 @@ def get_ai_analysis(ticker, news_list, current_price, support, resistance):
         "contents": [{"parts": [{"text": prompt}]}]
     }
     
-    # गूगल के सारे संभावित मॉडल्स की लिस्ट। ऐप खुद चेक करेगी कि कौन सा चल रहा है।
+    # ये रहे गूगल के बिल्कुल नए और एक्टिव मॉडल्स!
     models_to_try = [
-        "gemini-1.0-pro",
-        "gemini-1.5-flash",
-        "gemini-pro",
-        "gemini-1.5-pro",
-        "gemini-1.5-flash-latest",
-        "gemini-1.0-pro-latest"
+        "gemini-2.5-flash",
+        "gemini-2.0-flash",
+        "gemini-2.5-pro"
     ]
     
     last_error = ""
@@ -52,7 +48,7 @@ def get_ai_analysis(ticker, news_list, current_price, support, resistance):
                 return result['candidates'][0]['content']['parts'][0]['text']
             elif response.status_code == 404:
                 last_error = response.text
-                continue # अगर 404 मिला, तो ऐप क्रैश नहीं होगी, बल्कि लिस्ट का अगला मॉडल ट्राई करेगी!
+                continue 
             else:
                 return f"API एरर ({response.status_code}) मॉडल {model_name} पर: {response.text}"
         except Exception as e:
@@ -60,14 +56,13 @@ def get_ai_analysis(ticker, news_list, current_price, support, resistance):
 
     return f"❌ कोई भी AI मॉडल कनेक्ट नहीं हो पाया। आखिरी एरर: {last_error}"
 
-# --- UI और स्टॉक डेटा लेआउट ---
 st.set_page_config(page_title="Smart Stock Analyzer", layout="wide")
 st.title("Smart Stock Analyzer 🚀")
 
 raw_symbol = st.text_input("स्टॉक का नाम डालें (जैसे RELIANCE, VEDL, TATAMOTORS):", "VEDL")
 
 if st.button("Analyze"):
-    with st.spinner('मार्केट डेटा और AI प्रिडिक्शन लोड हो रहे हैं... कृपया 5 सेकंड प्रतीक्षा करें ⏳'):
+    with st.spinner('मार्केट डेटा और AI प्रिडिक्शन लोड हो रहे हैं... कृपया प्रतीक्षा करें ⏳'):
         
         symbol = raw_symbol.upper().strip()
         if not symbol.endswith('.NS') and not symbol.endswith('.BO'):
@@ -116,7 +111,6 @@ if st.button("Analyze"):
                 news_titles = ["इस स्टॉक की कोई खास खबर अभी नहीं है, टेक्निकल चार्ट्स के आधार पर एनालिसिस करें।"]
             
             st.markdown("### 🤖 AI Stock Predictions (Buy/Hold/Sell)")
-            # अब यह फंक्शन कभी खाली हाथ नहीं लौटेगा
             analysis = get_ai_analysis(symbol, news_titles, current_price, support, resistance)
             st.success(analysis)
             
