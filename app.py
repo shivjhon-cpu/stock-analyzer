@@ -4,10 +4,11 @@ import google.generativeai as genai
 import os
 import pandas as pd
 
+# Gemini AI सेटअप (एकदम सही और स्टेबल मॉडल का नाम)
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-model = genai.GenerativeModel('gemini-1.5-flash-latest')
+model = genai.GenerativeModel('gemini-1.5-flash')
+
 def get_ai_analysis(ticker, news_list, current_price, support, resistance):
-    # AI को दिए गए एकदम सख्त और स्पष्ट निर्देश (Prompt)
     prompt = f"""
     आप एक टॉप लेवल के वित्तीय विशेषज्ञ हैं। आपको {ticker} स्टॉक का एनालिसिस हिंदी में करना है।
     वर्तमान कीमत (Current Price): ₹{current_price}
@@ -32,15 +33,24 @@ def get_ai_analysis(ticker, news_list, current_price, support, resistance):
 
 st.set_page_config(page_title="Smart Stock Analyzer", layout="wide")
 st.title("Smart Stock Analyzer 🚀")
-symbol = st.text_input("स्टॉक का सिंबल डालें (e.g. RELIANCE.NS, VEDL.NS):", "VEDL.NS")
+
+# अब यूज़र को .NS लगाने की ज़रूरत नहीं है
+raw_symbol = st.text_input("स्टॉक का नाम डालें (जैसे RELIANCE, VEDL, TATAMOTORS):", "VEDL")
 
 if st.button("Analyze"):
     with st.spinner('मार्केट डेटा और AI प्रिडिक्शन लोड हो रहे हैं... ⏳'):
+        
+        # --- स्मार्ट ऑटो-फिक्स लॉजिक (.NS जोड़ने के लिए) ---
+        symbol = raw_symbol.upper().strip() # स्पेस हटाकर सब कैपिटल कर देगा
+        if not symbol.endswith('.NS') and not symbol.endswith('.BO'):
+            symbol = symbol + '.NS'
+        # --------------------------------------------------
+        
         stock = tk.Ticker(symbol)
         df = stock.history(period="6mo")
         
         if df.empty:
-            st.error("स्टॉक डेटा नहीं मिला। कृपया सिंबल चेक करें।")
+            st.error(f"'{symbol}' का डेटा नहीं मिला। कृपया स्पेलिंग चेक करें।")
         else:
             df['SMA_20'] = df['Close'].rolling(window=20).mean()
             df['SMA_50'] = df['Close'].rolling(window=50).mean()
@@ -62,7 +72,6 @@ if st.button("Analyze"):
             chart_data = df[['Close', 'SMA_20', 'SMA_50']].tail(90) 
             st.line_chart(chart_data)
             
-            # न्यूज़ निकालने का मजबूत तरीका
             news = stock.news
             news_titles = []
             news_items = []
@@ -70,7 +79,6 @@ if st.button("Analyze"):
             if news:
                 for n in news[:5]:
                     if isinstance(n, dict):
-                        # अगर title न मिले, तो content या कोई भी टेक्स्ट उठा ले
                         t = n.get('title', n.get('content', 'मार्केट अपडेट उपलब्ध'))
                         l = n.get('link', '#')
                         if t and t != 'Title Not Available':
