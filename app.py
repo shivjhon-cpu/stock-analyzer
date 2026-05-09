@@ -25,7 +25,12 @@ if st.button("Analyze"):
     st.subheader("Latest News & AI Insights 📰")
     news = stock.news
     if news:
-        news_titles = [n['title'] for n in news[:5]]
+        try:
+    # यह कोड चेक करेगा कि 'title' है या नहीं। नहीं होगा तो 'No Title' दिखाएगा और क्रैश नहीं होगा।
+    news_titles = [n.get('title', 'Title Not Available') for n in news[:5] if isinstance(n, dict)]
+except Exception as e:
+    # अगर न्यूज़ लाने में कोई भी गड़बड़ हुई, तो यह एरर दिखाने के बजाय सिम्पल मैसेज दिखा देगा।
+    news_titles = ["इस स्टॉक की ताज़ा खबर अभी उपलब्ध नहीं है।"]
         analysis = get_ai_analysis(symbol, news_titles)
         st.write(analysis)
         for n in news[:5]:
