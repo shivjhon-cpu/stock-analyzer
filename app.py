@@ -4,10 +4,8 @@ import google.generativeai as genai
 import os
 import pandas as pd
 
-# Gemini AI सेटअप - (Stable 'gemini-pro' मॉडल)
+model = genai.GenerativeModel('gemini-1.5-flash')
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-model = genai.GenerativeModel('gemini-pro') # <--- यहाँ मैंने अपनी पिछली गलती सुधार दी है!
-
 def get_ai_analysis(ticker, news_list, current_price, support, resistance):
     # AI को दिए गए एकदम सख्त और स्पष्ट निर्देश (Prompt)
     prompt = f"""
