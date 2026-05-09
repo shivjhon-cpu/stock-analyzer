@@ -4,17 +4,12 @@ import requests
 import os
 import pandas as pd
 
-# हमने google-generativeai लाइब्रेरी का इस्तेमाल बंद कर दिया है। 
-# अब हम सीधा डायरेक्ट API कॉल करेंगे, जो कभी फेल नहीं होता।
-
+# 'स्मार्ट ऑटो-फाइंडर' जो खुद एक्टिव AI मॉडल को खोज लेगा
 def get_ai_analysis(ticker, news_list, current_price, support, resistance):
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
         return "⚠️ API Key नहीं मिली! कृपया Google Cloud में GEMINI_API_KEY चेक करें।"
 
-    # डायरेक्ट Google API URL
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
-    
     prompt = f"""
     आप एक टॉप लेवल के वित्तीय विशेषज्ञ हैं। आपको {ticker} स्टॉक का एनालिसिस हिंदी में करना है।
     वर्तमान कीमत (Current Price): ₹{current_price}
@@ -36,17 +31,36 @@ def get_ai_analysis(ticker, news_list, current_price, support, resistance):
         "contents": [{"parts": [{"text": prompt}]}]
     }
     
-    try:
-        # सीधा इंटरनेट से AI को मैसेज भेजना
-        response = requests.post(url, json=payload, headers={'Content-Type': 'application/json'})
-        if response.status_code == 200:
-            result = response.json()
-            return result['candidates'][0]['content']['parts'][0]['text']
-        else:
-            return f"AI को कनेक्ट करने में सर्वर एरर: {response.status_code} - {response.text}"
-    except Exception as e:
-        return f"सिस्टम एरर आई: {e}"
+    # गूगल के सारे संभावित मॉडल्स की लिस्ट। ऐप खुद चेक करेगी कि कौन सा चल रहा है।
+    models_to_try = [
+        "gemini-1.0-pro",
+        "gemini-1.5-flash",
+        "gemini-pro",
+        "gemini-1.5-pro",
+        "gemini-1.5-flash-latest",
+        "gemini-1.0-pro-latest"
+    ]
+    
+    last_error = ""
+    
+    for model_name in models_to_try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+        try:
+            response = requests.post(url, json=payload, headers={'Content-Type': 'application/json'})
+            if response.status_code == 200:
+                result = response.json()
+                return result['candidates'][0]['content']['parts'][0]['text']
+            elif response.status_code == 404:
+                last_error = response.text
+                continue # अगर 404 मिला, तो ऐप क्रैश नहीं होगी, बल्कि लिस्ट का अगला मॉडल ट्राई करेगी!
+            else:
+                return f"API एरर ({response.status_code}) मॉडल {model_name} पर: {response.text}"
+        except Exception as e:
+            return f"सिस्टम एरर: {e}"
 
+    return f"❌ कोई भी AI मॉडल कनेक्ट नहीं हो पाया। आखिरी एरर: {last_error}"
+
+# --- UI और स्टॉक डेटा लेआउट ---
 st.set_page_config(page_title="Smart Stock Analyzer", layout="wide")
 st.title("Smart Stock Analyzer 🚀")
 
@@ -74,7 +88,6 @@ if st.button("Analyze"):
             current_price = round(df['Close'].iloc[-1], 2)
             current_volume = df['Volume'].iloc[-1]
             
-            # 1. UI में बॉक्सेस (सपोर्ट, रेजिस्टेंस, वॉल्यूम)
             st.markdown("### 📊 Technical Levels")
             col1, col2, col3, col4 = st.columns(4)
             col1.metric("Current Price", f"₹{current_price}")
@@ -82,12 +95,10 @@ if st.button("Analyze"):
             col3.metric("Resistance (3M)", f"₹{resistance}")
             col4.metric("Today's Volume", f"{current_volume:,}")
 
-            # 2. चार्ट्स
             st.markdown("### 📈 Price Trend & Moving Averages (Last 3 Months)")
             chart_data = df[['Close', 'SMA_20', 'SMA_50']].tail(90) 
             st.line_chart(chart_data)
             
-            # 3. न्यूज़
             news = stock.news
             news_titles = []
             news_items = []
@@ -104,12 +115,11 @@ if st.button("Analyze"):
             if not news_titles:
                 news_titles = ["इस स्टॉक की कोई खास खबर अभी नहीं है, टेक्निकल चार्ट्स के आधार पर एनालिसिस करें।"]
             
-            # 4. AI प्रिडिक्शन
             st.markdown("### 🤖 AI Stock Predictions (Buy/Hold/Sell)")
+            # अब यह फंक्शन कभी खाली हाथ नहीं लौटेगा
             analysis = get_ai_analysis(symbol, news_titles, current_price, support, resistance)
             st.success(analysis)
             
-            # 5. न्यूज़ लिंक
             st.markdown("### 📰 Recent News Links")
             if news_items:
                 for item in news_items:
