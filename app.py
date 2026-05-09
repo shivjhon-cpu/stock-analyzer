@@ -4,9 +4,9 @@ import google.generativeai as genai
 import os
 import pandas as pd
 
-# Gemini AI सेटअप - (सबसे लेटेस्ट और फ़ास्ट मॉडल)
+# Gemini AI सेटअप - (Stable 'gemini-pro' मॉडल)
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-model = genai.GenerativeModel('gemini-1.5-flash')
+model = genai.GenerativeModel('gemini-pro') # <--- यहाँ मैंने अपनी पिछली गलती सुधार दी है!
 
 def get_ai_analysis(ticker, news_list, current_price, support, resistance):
     # AI को दिए गए एकदम सख्त और स्पष्ट निर्देश (Prompt)
@@ -34,7 +34,7 @@ def get_ai_analysis(ticker, news_list, current_price, support, resistance):
 
 st.set_page_config(page_title="Smart Stock Analyzer", layout="wide")
 st.title("Smart Stock Analyzer 🚀")
-symbol = st.text_input("स्टॉक का सिंबल डालें (e.g. RELIANCE.NS, TATAMOTORS.NS):", "VEDL.NS")
+symbol = st.text_input("स्टॉक का सिंबल डालें (e.g. RELIANCE.NS, VEDL.NS):", "VEDL.NS")
 
 if st.button("Analyze"):
     with st.spinner('मार्केट डेटा और AI प्रिडिक्शन लोड हो रहे हैं... ⏳'):
