@@ -9,3 +9,6 @@ gunicorn
 plotly
 google-generativeai>=0.7.0
 streamlit
+smartapi-python
+pyotp
+python-dotenv
