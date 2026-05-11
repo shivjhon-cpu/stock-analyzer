@@ -4,6 +4,7 @@ import requests
 import os
 import pandas as pd
 import numpy as np
+from angel_helper import fetch_my_portfolio
 
 def get_ai_analysis(ticker, news_list, current_price, support, resistance, rsi, sma_20, sma_50, sma_200, vol_surge, asset_type):
     api_key = os.environ.get("GEMINI_API_KEY")
@@ -30,7 +31,7 @@ def get_ai_analysis(ticker, news_list, current_price, support, resistance, rsi, 
        - 7 दिन का टार्गेट (7-Day Target): ...
        - 1 महीने का टार्गेट (1-Month Target): ...
        - 3 महीने का टार्गेट (3-Month Target): ...
-    3. **कारण और न्यूज़ एनालिसिस (Reason & News Impact):** (2-3 लाइनों में बताएं कि आपने RSI, वॉल्यूम और चार्ट स्ट्रक्चर के आधार पर यह सलाह क्यों दी है)।
+    3. **कारण और न्यूज़ एनालिसिस (Reason & News Impact):** (2-3 लाइनों में बताएं कि आपने RSI, वॉल्यूम और चार्ट स्ट्रक्चर के आधार पर यह सलाह क्यों दी है)।
     """
     
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
@@ -59,7 +60,7 @@ st.set_page_config(page_title="Pro Stock & Commodity Analyzer", layout="wide")
 st.title("Pro Stock & Commodity Analyzer 🚀")
 
 # --- नया: एसेट टाइप सेलेक्शन ---
-asset_type = st.radio("आप क्या एनालाइज़ करना चाहते हैं?", ("Stock (NSE/BSE)", "Commodity (Gold/Silver in USD)"))
+asset_type = st.radio("आप क्या एनालाइज़ करना चाहते हैं?", ("Stock (NSE/BSE)", "Commodity (Gold/Silver in USD)"))
 
 if asset_type == "Commodity (Gold/Silver in USD)":
     st.info("💡 हिंट: Gold के लिए `GC=F` और Silver के लिए `SI=F` टाइप करें।")
@@ -72,7 +73,6 @@ if st.button("Analyze"):
         
         symbol = raw_symbol.upper().strip()
         
-        # .NS लॉजिक सिर्फ स्टॉक्स के लिए
         if asset_type == "Stock (NSE/BSE)":
             if not symbol.endswith('.NS') and not symbol.endswith('.BO'):
                 symbol = symbol + '.NS'
@@ -106,9 +106,10 @@ if st.button("Analyze"):
             current_rsi = round(df['RSI'].iloc[-1], 2)
             sma_20_val = round(df['SMA_20'].iloc[-1], 2)
             sma_50_val = round(df['SMA_50'].iloc[-1], 2)
+            
+            # यहाँ सुधार किया गया है (ब्रैकेट बंद कर दिया गया है):
             sma_200_val = round(df['SMA_200'].iloc[-1], 2) if not pd.isna(df['SMA_200'].iloc[-1]) else "N/A"
             
-            # करंसी सिंबल सेट करना
             cur_sym = "$" if asset_type == "Commodity (Gold/Silver in USD)" else "₹"
 
             st.markdown("### 📊 Advanced Technical Indicators")
@@ -140,3 +141,21 @@ if st.button("Analyze"):
             st.markdown("### 🤖 Pro AI Analysis (Powered by RSI & Volume)")
             analysis = get_ai_analysis(symbol, news_titles, current_price, support, resistance, current_rsi, sma_20_val, sma_50_val, sma_200_val, vol_surge, asset_type)
             st.success(analysis)
+
+st.divider()
+st.subheader("📊 मेरा Angel One पोर्टफोलियो")
+
+if st.button("पोर्टफोलियो देखें"):
+    with st.spinner("Angel One से सुरक्षित रूप से डेटा ला रहे हैं..."):
+        my_data = fetch_my_portfolio()
+        
+        if "error" in my_data:
+            st.error(my_data["error"])
+        else:
+            st.success("डेटा सफलतापूर्वक आ गया!")
+            try:
+                df_portfolio = pd.DataFrame(my_data)
+                st.dataframe(df_portfolio, use_container_width=True) 
+            except Exception as e:
+                st.write("टेबल बनाने में छोटी सी दिक्कत:", e)
+                st.json(my_data)
