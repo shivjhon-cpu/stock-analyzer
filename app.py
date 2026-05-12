@@ -104,4 +104,7 @@ if st.button("Analyze"):
             
             vol_surge = round(current_volume / avg_vol, 1) if avg_vol > 0 else 1
             current_rsi = round(df['RSI'].iloc[-1], 2)
-            sma_20_val = round(df['SMA_
+            current_rsi = round(df['RSI'].iloc[-1], 2)
+            sma_20_val = round(df['SMA_20'].iloc[-1], 2)
+            sma_50_val = round(df['SMA_50'].iloc[-1], 2)
+            sma_200_val = round(df['SMA_200'].iloc[-1], 2) if not pd.isna(df['SMA_200'].iloc[-1]) else "N/A"
