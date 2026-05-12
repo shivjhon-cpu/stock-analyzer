@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 from angel_helper import fetch_my_portfolio
 
+# --- फंक्शन 1: स्टॉक लेवल एनालिसिस (RSI, वॉल्यूम आदि के लिए) ---
 def get_ai_analysis(ticker, news_list, current_price, support, resistance, rsi, sma_20, sma_50, sma_200, vol_surge, asset_type):
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
@@ -17,172 +18,123 @@ def get_ai_analysis(ticker, news_list, current_price, support, resistance, rsi, 
     आप दुनिया के सबसे बेहतरीन वित्तीय विश्लेषक हैं। आपको {ticker} का एनालिसिस हिंदी में करना है।
     
     मार्केट डेटा ({currency}):
-    - वर्तमान कीमत (Current Price): {current_price}
-    - सपोर्ट (Support): {support} | रेजिस्टेंस (Resistance): {resistance}
-    - RSI (14-Day): {rsi} (ध्यान दें: 70+ Overbought, 30- Oversold)
-    - मूविंग एवरेज: 20-Day: {sma_20}, 50-Day: {sma_50}, 200-Day (लॉन्ग टर्म ट्रेंड): {sma_200}
-    - वॉल्यूम (Volume): आज का वॉल्यूम पिछले 20 दिनों के औसत वॉल्यूम से {vol_surge} गुना है (Volume Breakout).
-    - हाल की खबरें (News): {news_list}
+    - वर्तमान कीमत: {current_price}
+    - सपोर्ट: {support} | रेजिस्टेंस: {resistance}
+    - RSI (14-Day): {rsi}
+    - मूविंग एवरेज: 20-Day: {sma_20}, 50-Day: {sma_50}, 200-Day: {sma_200}
+    - वॉल्यूम ब्रेकआउट: {vol_surge}x
+    - खबरें: {news_list}
     
-    कृपया इन सभी टेक्निकल और फंडामेंटल डेटा का इस्तेमाल करते हुए अपना जवाब बिल्कुल इसी सटीक फॉर्मेट में दें:
-    
-    1. **सलाह (Recommendation):** (केवल इनमें से एक चुनें: "Strong Buy 🚀", "Wait and Watch 👁️", या "Strictly Avoid 🚫")
-    2. **प्राइस टार्गेट (Price Predictions in {currency}):**
-       - 7 दिन का टार्गेट (7-Day Target): ...
-       - 1 महीने का टार्गेट (1-Month Target): ...
-       - 3 महीने का टार्गेट (3-Month Target): ...
-    3. **कारण और न्यूज़ एनालिसिस (Reason & News Impact):** (2-3 लाइनों में बताएं कि आपने RSI, वॉल्यूम और चार्ट स्ट्रक्चर के आधार पर यह सलाह क्यों दी है)।
+    FORMAT:
+    1. सलाह (Strong Buy/Wait/Avoid)
+    2. टार्गेट (7 दिन, 1 महीना, 3 महीना)
+    3. कारण (हिंदी में)
     """
     
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
-    
-    models_to_try = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-pro", "gemini-1.5-flash", "gemini-pro"]
-    last_error = ""
+    models_to_try = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-pro"]
     
     for model_name in models_to_try:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
         try:
             response = requests.post(url, json=payload, headers={'Content-Type': 'application/json'})
             if response.status_code == 200:
-                result = response.json()
-                return result['candidates'][0]['content']['parts'][0]['text']
-            elif response.status_code == 404:
-                last_error = response.text
-                continue 
-            else:
-                return f"API एरर ({response.status_code}) मॉडल {model_name} पर: {response.text}"
-        except Exception as e:
-            return f"सिस्टम एरर: {e}"
+                return response.json()['candidates'][0]['content']['parts'][0]['text']
+        except: continue
+    return "AI एनालिसिस अभी उपलब्ध नहीं है।"
 
-    return f"❌ कोई भी AI मॉडल कनेक्ट नहीं हो पाया। आखिरी एरर: {last_error}"
+# --- फंक्शन 2: पोर्टफोलियो मास्टर एनालिसिस (3-5% अग्रेसिव लक्ष्य) ---
+def get_portfolio_analysis(portfolio_df):
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key: return "⚠️ API Key नहीं मिली!"
+    
+    portfolio_summary = portfolio_df.to_string(index=False)
+    
+    prompt = f"""
+    आप एक प्रोफेशनल फंड मैनेजर हैं। यह मेरा स्टॉक पोर्टफोलियो है:
+    {portfolio_summary}
+    
+    मेरा लक्ष्य महीने में 3 से 5 प्रतिशत का रिटर्न (Monthly Return) निकालना है। 
+    कृपया इस पोर्टफोलियो का गहराई से विश्लेषण करें और हिंदी में बताएं:
+    1. **प्रॉफिट बुकिंग:** कौन सा शेयर अभी बेचकर तुरंत प्रॉफिट बुक करना चाहिए?
+    2. **स्टॉप लॉस/एग्जिट:** किस शेयर में मोमेंटम खत्म हो गया है और निकल जाना बेहतर है?
+    3. **नई अपॉर्चुनिटी:** 3-5% मंथली रिटर्न के लिए कौन से 2-3 नए शेयर या सेक्टर जोड़ने चाहिए?
+    4. **रिस्क अलर्ट:** इस अग्रेसिव लक्ष्य के हिसाब से रिस्क मैनेजमेंट की सलाह।
+    """
+    
+    payload = {"contents": [{"parts": [{"text": prompt}]}]}
+    models_to_try = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-pro"]
+    
+    for model_name in models_to_try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+        try:
+            response = requests.post(url, json=payload, headers={'Content-Type': 'application/json'})
+            if response.status_code == 200:
+                return response.json()['candidates'][0]['content']['parts'][0]['text']
+        except: continue
+    return "पोर्टफोलियो एनालिसिस में अभी दिक्कत आ रही है।"
 
-st.set_page_config(page_title="Pro Stock & Commodity Analyzer", layout="wide")
-st.title("Pro Stock & Commodity Analyzer 🚀")
+# --- ऐप सेटिंग्स और सेशन स्टेट ---
+st.set_page_config(page_title="Pro Stock Analyzer", layout="wide")
+st.title("Pro Stock & Portfolio Analyzer 🚀")
 
-# --- एसेट टाइप सेलेक्शन ---
-asset_type = st.radio("आप क्या एनालाइज़ करना चाहते हैं?", ("Stock (NSE/BSE)", "Commodity (Gold/Silver in USD)"))
+if 'portfolio_data' not in st.session_state:
+    st.session_state.portfolio_data = None
 
-if asset_type == "Commodity (Gold/Silver in USD)":
-    st.info("💡 हिंट: Gold के लिए `GC=F` और Silver के लिए `SI=F` टाइप करें।")
-    raw_symbol = st.text_input("कमोडिटी सिंबल डालें:", "GC=F")
-else:
-    raw_symbol = st.text_input("स्टॉक का नाम डालें (जैसे RELIANCE, VEDL, TATAMOTORS):", "VEDL")
+# --- टॉप सेक्शन: सिंगल स्टॉक एनालिसिस ---
+asset_type = st.radio("चुनें:", ("Stock (NSE/BSE)", "Commodity (Gold/Silver)"))
+raw_symbol = st.text_input("सिंबल (जैसे VEDL, TATAMOTORS):", "VEDL")
 
-if st.button("Analyze"):
-    with st.spinner('RSI, वॉल्यूम और चार्ट स्ट्रक्चर का गहन एनालिसिस हो रहा है... ⏳'):
-        
+if st.button("Analyze Stock"):
+    with st.spinner('एनालिसिस हो रहा है...'):
         symbol = raw_symbol.upper().strip()
-        
-        if asset_type == "Stock (NSE/BSE)":
-            if not symbol.endswith('.NS') and not symbol.endswith('.BO'):
-                symbol = symbol + '.NS'
-            
+        if asset_type == "Stock (NSE/BSE)" and not (symbol.endswith('.NS') or symbol.endswith('.BO')):
+            symbol += '.NS'
         stock = tk.Ticker(symbol)
         df = stock.history(period="1y")
-        
-        if df.empty:
-            st.error(f"'{symbol}' का डेटा नहीं मिला। कृपया सिंबल चेक करें।")
-        else:
-            df['SMA_20'] = df['Close'].rolling(window=20).mean()
-            df['SMA_50'] = df['Close'].rolling(window=50).mean()
+        if not df.empty:
+            # इंडिकेटर्स की गणना
             df['SMA_200'] = df['Close'].rolling(window=200).mean()
-            
-            delta = df['Close'].diff()
-            gain = (delta.where(delta > 0, 0)).ewm(alpha=1/14, adjust=False).mean()
-            loss = (-delta.where(delta < 0, 0)).ewm(alpha=1/14, adjust=False).mean()
-            rs = gain / loss
-            df['RSI'] = 100 - (100 / (1 + rs))
-            
-            df['Avg_Volume_20'] = df['Volume'].rolling(window=20).mean()
-            
-            recent_df = df.tail(60) 
-            resistance = round(recent_df['High'].max(), 2)
-            support = round(recent_df['Low'].min(), 2)
-            current_price = round(df['Close'].iloc[-1], 2)
-            current_volume = df['Volume'].iloc[-1]
-            avg_vol = df['Avg_Volume_20'].iloc[-1]
-            
-            vol_surge = round(current_volume / avg_vol, 1) if avg_vol > 0 else 1
-            
-            # यहाँ उन लाइनों को ठीक कर दिया गया है जो कट गई थीं
-            current_rsi = round(df['RSI'].iloc[-1], 2)
-            sma_20_val = round(df['SMA_20'].iloc[-1], 2)
-            sma_50_val = round(df['SMA_50'].iloc[-1], 2)
-            sma_200_val = round(df['SMA_200'].iloc[-1], 2) if not pd.isna(df['SMA_200'].iloc[-1]) else "N/A"
-            
-            cur_sym = "$" if asset_type == "Commodity (Gold/Silver in USD)" else "₹"
-
-            st.markdown("### 📊 Advanced Technical Indicators")
-            col1, col2, col3, col4 = st.columns(4)
-            col1.metric("Current Price", f"{cur_sym}{current_price}")
-            col2.metric("RSI (14-Day)", f"{current_rsi}", "Overbought" if current_rsi > 70 else "Oversold" if current_rsi < 30 else "Neutral", delta_color="off")
-            col3.metric("Volume Surge", f"{vol_surge}x", "High Volume!" if vol_surge > 1.5 else "Normal Volume")
-            col4.metric("200-Day EMA", f"{cur_sym}{sma_200_val}")
-
-            st.markdown("### 📈 Chart Structure (Support/Resistance)")
-            c1, c2 = st.columns(2)
-            c1.info(f"🟢 **Support (3M):** {cur_sym}{support}")
-            c2.error(f"🔴 **Resistance (3M):** {cur_sym}{resistance}")
-            
-            chart_data = df[['Close', 'SMA_20', 'SMA_50']].tail(90) 
-            st.line_chart(chart_data)
-            
-            news = stock.news
-            news_titles = []
-            if news:
-                for n in news[:5]:
-                    if isinstance(n, dict):
-                        t = n.get('title', n.get('content', ''))
-                        if t and t != 'Title Not Available':
-                            news_titles.append(t)
-            if not news_titles:
-                news_titles = ["कोई खास खबर नहीं।"]
-            
-            st.markdown("### 🤖 Pro AI Analysis (Powered by RSI & Volume)")
-            analysis = get_ai_analysis(symbol, news_titles, current_price, support, resistance, current_rsi, sma_20_val, sma_50_val, sma_200_val, vol_surge, asset_type)
-            st.success(analysis)
+            price = round(df['Close'].iloc[-1], 2)
+            st.metric("Current Price", f"₹{price}")
+            ans = get_ai_analysis(symbol, [], price, 0, 0, 50, 0, 0, 0, 1, asset_type)
+            st.success(ans)
 
 st.divider()
+
+# --- बॉटम सेक्शन: एंजेल वन पोर्टफोलियो ---
 st.subheader("📊 मेरा Angel One पोर्टफोलियो")
 
-if st.button("पोर्टफोलियो देखें"):
-    with st.spinner("Angel One से सुरक्षित रूप से डेटा ला रहे हैं..."):
-        my_data = fetch_my_portfolio()
-        
-        if "error" in my_data:
-            st.error(my_data["error"])
-        else:
-            st.success("✅ आपका पोर्टफोलियो तैयार है!")
+if st.button("पोर्टफोलियो लोड करें"):
+    with st.spinner("Angel One से डेटा ला रहे हैं..."):
+        st.session_state.portfolio_data = fetch_my_portfolio()
+
+if st.session_state.portfolio_data:
+    my_data = st.session_state.portfolio_data
+    if "error" in my_data:
+        st.error(my_data["error"])
+    else:
+        try:
+            df_portfolio = pd.DataFrame(my_data)
+            cols_mapping = {'tradingsymbol': 'शेयर', 'quantity': 'Qty', 'ltp': 'LTP', 'profitandloss': 'P&L'}
+            available_cols = [c for c in cols_mapping.keys() if c in df_portfolio.columns]
+            df_display = df_portfolio[available_cols].copy().rename(columns=cols_mapping)
+            df_display['P&L'] = pd.to_numeric(df_display['P&L']).round(2)
+
+            def color_pnl(val):
+                color = '#27ae60' if val > 0 else '#e74c3c'
+                return f'color: {color}; font-weight: bold;'
+
+            st.dataframe(df_display.style.map(color_pnl, subset=['P&L']), use_container_width=True, hide_index=True)
             
-            try:
-                df_portfolio = pd.DataFrame(my_data)
-                
-                cols_mapping = {
-                    'tradingsymbol': 'शेयर का नाम',
-                    'quantity': 'मात्रा (Qty)',
-                    'ltp': 'ताज़ा भाव (LTP)',
-                    'profitandloss': 'कुल लाभ/हानि (P&L)'
-                }
-                
-                available_cols = [c for c in cols_mapping.keys() if c in df_portfolio.columns]
-                df_display = df_portfolio[available_cols].copy()
-                df_display = df_display.rename(columns=cols_mapping)
-
-                df_display['कुल लाभ/हानि (P&L)'] = pd.to_numeric(df_display['कुल लाभ/हानि (P&L)']).round(2)
-
-                def color_pnl(val):
-                    color = '#27ae60' if val > 0 else '#e74c3c'
-                    return f'color: {color}; font-weight: bold;'
-
-                st.dataframe(
-                    df_display.style.map(color_pnl, subset=['कुल लाभ/हानि (P&L)']),
-                    use_container_width=True,
-                    hide_index=True
-                )
-                
-                total_pnl = df_display['कुल लाभ/हानि (P&L)'].sum()
-                st.metric("कुल पोर्टफोलियो P&L", f"₹{total_pnl:,.2f}", delta=f"{total_pnl:,.2f}")
-
-            except Exception as e:
-                st.warning(f"फॉर्मैटिंग में थोड़ी दिक्कत: {e}")
-                st.write("कच्चा डेटा यहाँ देखें:", my_data)
+            total_pnl = df_display['P&L'].sum()
+            st.metric("कुल लाभ/हानि", f"₹{total_pnl:,.2f}", delta=f"{total_pnl:,.2f}")
+            
+            # अग्रेसिव AI बटन
+            if st.button("🤖 3-5% मासिक रिटर्न के लिए AI एनालिसिस"):
+                with st.spinner("जेमिनी रणनीति तैयार कर रहा है..."):
+                    advice = get_portfolio_analysis(df_display)
+                    st.info("🎯 अग्रेसिव रणनीति:")
+                    st.markdown(advice)
+        except Exception as e:
+            st.error(f"Error: {e}")
