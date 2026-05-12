@@ -43,10 +43,10 @@ def get_ai_analysis(ticker, news_list, current_price, support, resistance, rsi, 
         except: continue
     return "AI एनालिसिस अभी उपलब्ध नहीं है।"
 
-# --- फंक्शन 2: पोर्टफोलियो मास्टर एनालिसिस (3-5% अग्रेसिव लक्ष्य) ---
+# --- फंक्शन 2: पोर्टफोलियो मास्टर एनालिसिस (Diagnostic Mode) ---
 def get_portfolio_analysis(portfolio_df):
     api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key: return "⚠️ API Key नहीं मिली!"
+    if not api_key: return "⚠️ API Key गूगल क्लाउड से नहीं मिल रही है!"
     
     portfolio_summary = portfolio_df.to_string(index=False)
     
@@ -56,23 +56,24 @@ def get_portfolio_analysis(portfolio_df):
     
     मेरा लक्ष्य महीने में 3 से 5 प्रतिशत का रिटर्न (Monthly Return) निकालना है। 
     कृपया इस पोर्टफोलियो का गहराई से विश्लेषण करें और हिंदी में बताएं:
-    1. **प्रॉफिट बुकिंग:** कौन सा शेयर अभी बेचकर तुरंत प्रॉफिट बुक करना चाहिए?
-    2. **स्टॉप लॉस/एग्जिट:** किस शेयर में मोमेंटम खत्म हो गया है और निकल जाना बेहतर है?
-    3. **नई अपॉर्चुनिटी:** 3-5% मंथली रिटर्न के लिए कौन से 2-3 नए शेयर या सेक्टर जोड़ने चाहिए?
-    4. **रिस्क अलर्ट:** इस अग्रेसिव लक्ष्य के हिसाब से रिस्क मैनेजमेंट की सलाह।
+    1. प्रॉफिट बुकिंग
+    2. स्टॉप लॉस/एग्जिट
+    3. नई अपॉर्चुनिटी
+    4. रिस्क अलर्ट
     """
     
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
-    models_to_try = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-pro"]
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
     
-    for model_name in models_to_try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
-        try:
-            response = requests.post(url, json=payload, headers={'Content-Type': 'application/json'})
-            if response.status_code == 200:
-                return response.json()['candidates'][0]['content']['parts'][0]['text']
-        except: continue
-    return "पोर्टफोलियो एनालिसिस में अभी दिक्कत आ रही है।"
+    try:
+        response = requests.post(url, json=payload, headers={'Content-Type': 'application/json'})
+        if response.status_code == 200:
+            return response.json()['candidates'][0]['content']['parts'][0]['text']
+        else:
+            # यह लाइन हमें असली बीमारी बताएगी!
+            return f"⚠️ API की असली दिक्कत ({response.status_code}): {response.text}"
+    except Exception as e:
+        return f"सिस्टम एरर: {e}"
 
 # --- ऐप सेटिंग्स और सेशन स्टेट ---
 st.set_page_config(page_title="Pro Stock Analyzer", layout="wide")
@@ -134,7 +135,7 @@ if st.session_state.portfolio_data:
             if st.button("🤖 3-5% मासिक रिटर्न के लिए AI एनालिसिस"):
                 with st.spinner("जेमिनी रणनीति तैयार कर रहा है..."):
                     advice = get_portfolio_analysis(df_display)
-                    st.info("🎯 अग्रेसिव रणनीति:")
+                    st.info("🎯 अग्रेसिव रणनीति (या एरर रिपोर्ट):")
                     st.markdown(advice)
         except Exception as e:
             st.error(f"Error: {e}")
