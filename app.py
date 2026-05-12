@@ -152,10 +152,44 @@ if st.button("पोर्टफोलियो देखें"):
         if "error" in my_data:
             st.error(my_data["error"])
         else:
-            st.success("डेटा सफलतापूर्वक आ गया!")
+            st.success("✅ आपका पोर्टफोलियो तैयार है!")
+            
             try:
                 df_portfolio = pd.DataFrame(my_data)
-                st.dataframe(df_portfolio, use_container_width=True) 
+                
+                # 1. जरूरी कॉलम चुनना और उनके नाम बदलना
+                cols_mapping = {
+                    'tradingsymbol': 'शेयर का नाम',
+                    'quantity': 'मात्रा (Qty)',
+                    'ltp': 'ताज़ा भाव (LTP)',
+                    'pnl': 'कुल लाभ/हानि (P&L)',
+                    'pnlpercentage': 'रिटर्न (%)'
+                }
+                
+                # केवल वही कॉलम रखें जो उपलब्ध हैं
+                available_cols = [c for c in cols_mapping.keys() if c in df_portfolio.columns]
+                df_display = df_portfolio[available_cols].copy()
+                df_display = df_display.rename(columns=cols_mapping)
+
+                # 2. नंबर्स को साफ करना
+                df_display['कुल लाभ/हानि (P&L)'] = pd.to_numeric(df_display['कुल लाभ/हानि (P&L)']).round(2)
+                df_display['रिटर्न (%)'] = pd.to_numeric(df_display['रिटर्न (%)']).round(2)
+
+                # 3. रंगों का जादू (मुनाफा हरा, घाटा लाल)
+                def color_pnl(val):
+                    color = '#27ae60' if val > 0 else '#e74c3c'
+                    return f'color: {color}; font-weight: bold;'
+
+                st.dataframe(
+                    df_display.style.map(color_pnl, subset=['कुल लाभ/हानि (P&L)', 'रिटर्न (%)']),
+                    use_container_width=True,
+                    hide_index=True
+                )
+                
+                # 4. समरी कार्ड
+                total_pnl = df_display['कुल लाभ/हानि (P&L)'].sum()
+                st.metric("कुल पोर्टफोलियो P&L", f"₹{total_pnl:,.2f}", delta=f"{total_pnl:,.2f}")
+
             except Exception as e:
-                st.write("टेबल बनाने में छोटी सी दिक्कत:", e)
+                st.warning(f"फॉर्मैटिंग में थोड़ी दिक्कत: {e}")
                 st.json(my_data)
