@@ -59,7 +59,7 @@ def get_ai_analysis(ticker, news_list, current_price, support, resistance, rsi, 
 st.set_page_config(page_title="Pro Stock & Commodity Analyzer", layout="wide")
 st.title("Pro Stock & Commodity Analyzer 🚀")
 
-# --- नया: एसेट टाइप सेलेक्शन ---
+# --- एसेट टाइप सेलेक्शन ---
 asset_type = st.radio("आप क्या एनालाइज़ करना चाहते हैं?", ("Stock (NSE/BSE)", "Commodity (Gold/Silver in USD)"))
 
 if asset_type == "Commodity (Gold/Silver in USD)":
@@ -103,8 +103,86 @@ if st.button("Analyze"):
             avg_vol = df['Avg_Volume_20'].iloc[-1]
             
             vol_surge = round(current_volume / avg_vol, 1) if avg_vol > 0 else 1
-            current_rsi = round(df['RSI'].iloc[-1], 2)
+            
+            # यहाँ उन लाइनों को ठीक कर दिया गया है जो कट गई थीं
             current_rsi = round(df['RSI'].iloc[-1], 2)
             sma_20_val = round(df['SMA_20'].iloc[-1], 2)
             sma_50_val = round(df['SMA_50'].iloc[-1], 2)
             sma_200_val = round(df['SMA_200'].iloc[-1], 2) if not pd.isna(df['SMA_200'].iloc[-1]) else "N/A"
+            
+            cur_sym = "$" if asset_type == "Commodity (Gold/Silver in USD)" else "₹"
+
+            st.markdown("### 📊 Advanced Technical Indicators")
+            col1, col2, col3, col4 = st.columns(4)
+            col1.metric("Current Price", f"{cur_sym}{current_price}")
+            col2.metric("RSI (14-Day)", f"{current_rsi}", "Overbought" if current_rsi > 70 else "Oversold" if current_rsi < 30 else "Neutral", delta_color="off")
+            col3.metric("Volume Surge", f"{vol_surge}x", "High Volume!" if vol_surge > 1.5 else "Normal Volume")
+            col4.metric("200-Day EMA", f"{cur_sym}{sma_200_val}")
+
+            st.markdown("### 📈 Chart Structure (Support/Resistance)")
+            c1, c2 = st.columns(2)
+            c1.info(f"🟢 **Support (3M):** {cur_sym}{support}")
+            c2.error(f"🔴 **Resistance (3M):** {cur_sym}{resistance}")
+            
+            chart_data = df[['Close', 'SMA_20', 'SMA_50']].tail(90) 
+            st.line_chart(chart_data)
+            
+            news = stock.news
+            news_titles = []
+            if news:
+                for n in news[:5]:
+                    if isinstance(n, dict):
+                        t = n.get('title', n.get('content', ''))
+                        if t and t != 'Title Not Available':
+                            news_titles.append(t)
+            if not news_titles:
+                news_titles = ["कोई खास खबर नहीं।"]
+            
+            st.markdown("### 🤖 Pro AI Analysis (Powered by RSI & Volume)")
+            analysis = get_ai_analysis(symbol, news_titles, current_price, support, resistance, current_rsi, sma_20_val, sma_50_val, sma_200_val, vol_surge, asset_type)
+            st.success(analysis)
+
+st.divider()
+st.subheader("📊 मेरा Angel One पोर्टफोलियो")
+
+if st.button("पोर्टफोलियो देखें"):
+    with st.spinner("Angel One से सुरक्षित रूप से डेटा ला रहे हैं..."):
+        my_data = fetch_my_portfolio()
+        
+        if "error" in my_data:
+            st.error(my_data["error"])
+        else:
+            st.success("✅ आपका पोर्टफोलियो तैयार है!")
+            
+            try:
+                df_portfolio = pd.DataFrame(my_data)
+                
+                cols_mapping = {
+                    'tradingsymbol': 'शेयर का नाम',
+                    'quantity': 'मात्रा (Qty)',
+                    'ltp': 'ताज़ा भाव (LTP)',
+                    'profitandloss': 'कुल लाभ/हानि (P&L)'
+                }
+                
+                available_cols = [c for c in cols_mapping.keys() if c in df_portfolio.columns]
+                df_display = df_portfolio[available_cols].copy()
+                df_display = df_display.rename(columns=cols_mapping)
+
+                df_display['कुल लाभ/हानि (P&L)'] = pd.to_numeric(df_display['कुल लाभ/हानि (P&L)']).round(2)
+
+                def color_pnl(val):
+                    color = '#27ae60' if val > 0 else '#e74c3c'
+                    return f'color: {color}; font-weight: bold;'
+
+                st.dataframe(
+                    df_display.style.map(color_pnl, subset=['कुल लाभ/हानि (P&L)']),
+                    use_container_width=True,
+                    hide_index=True
+                )
+                
+                total_pnl = df_display['कुल लाभ/हानि (P&L)'].sum()
+                st.metric("कुल पोर्टफोलियो P&L", f"₹{total_pnl:,.2f}", delta=f"{total_pnl:,.2f}")
+
+            except Exception as e:
+                st.warning(f"फॉर्मैटिंग में थोड़ी दिक्कत: {e}")
+                st.write("कच्चा डेटा यहाँ देखें:", my_data)
