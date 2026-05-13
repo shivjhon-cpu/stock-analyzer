@@ -32,7 +32,6 @@ def get_ai_analysis(ticker, news_list, current_price, support, resistance, rsi, 
     """
     
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
-    # यहाँ भी स्मार्ट लूप लगा दिया गया है ताकि 404 एरर न आए
     models_to_try = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-pro"]
     last_error = ""
     
@@ -84,10 +83,38 @@ def get_portfolio_analysis(portfolio_df):
         except Exception as e:
             last_error = str(e)
             
-    return f"⚠️ API की दिक्कत: कोई भी मॉडल कनेक्ट नहीं हो पाया। आखिरी एरर: {last_error}"
+    return f"⚠️ API की दिक्कत: कोई भी मॉडल कनेक्ट পণ্ডিত नहीं हो पाया। आखिरी एरर: {last_error}"
 
-# --- ऐप सेटिंग्स और सेशन स्टेट ---
+# --- ऐप सेटिंग्स ---
 st.set_page_config(page_title="Pro Stock Analyzer", layout="wide")
+
+# --- सिक्योरिटी पिन सिस्टम (नया सुरक्षा ताला) ---
+def check_password():
+    # गूगल क्लाउड से पिन लाएं (अगर सेट नहीं किया है, तो टेस्टिंग के लिए डिफ़ॉल्ट '1234' काम करेगा)
+    correct_pin = os.environ.get("APP_PIN", "1234")
+    
+    if "authenticated" not in st.session_state:
+        st.session_state.authenticated = False
+
+    if not st.session_state.authenticated:
+        st.title("🔒 ऐप सुरक्षित है")
+        st.info("आगे बढ़ने के लिए अपना सीक्रेट पिन डालें।")
+        pin_input = st.text_input("सिक्योरिटी पिन:", type="password")
+        
+        if st.button("अनलॉक करें"):
+            if pin_input == correct_pin:
+                st.session_state.authenticated = True
+                st.rerun()  # सही पिन डालते ही ऐप रिफ्रेश होकर खुल जाएगा
+            else:
+                st.error("❌ गलत पिन! कृपया सही पिन डालें।")
+        return False
+    return True
+
+# अगर पिन सही नहीं है, तो ऐप यहीं रुक जाएगा और नीचे का कुछ नहीं दिखेगा
+if not check_password():
+    st.stop()
+
+# --- मुख्य ऐप शुरू (यह तभी दिखेगा जब पिन सही होगा) ---
 st.title("Pro Stock & Portfolio Analyzer 🚀")
 
 if 'portfolio_data' not in st.session_state:
@@ -108,7 +135,6 @@ if st.button("Analyze Stock"):
         if df.empty:
             st.error(f"'{symbol}' का डेटा नहीं मिला। कृपया सिंबल चेक करें।")
         else:
-            # असली कैलकुलेशन (जो कल कट गई थी)
             df['SMA_20'] = df['Close'].rolling(window=20).mean()
             df['SMA_50'] = df['Close'].rolling(window=50).mean()
             df['SMA_200'] = df['Close'].rolling(window=200).mean()
@@ -137,7 +163,6 @@ if st.button("Analyze Stock"):
             
             cur_sym = "$" if asset_type == "Commodity" else "₹"
 
-            # चार्ट और मैट्रिक्स दिखाना
             st.markdown("### 📊 Advanced Technical Indicators")
             col1, col2, col3, col4 = st.columns(4)
             col1.metric("Current Price", f"{cur_sym}{current_price}")
@@ -153,7 +178,6 @@ if st.button("Analyze Stock"):
             chart_data = df[['Close', 'SMA_20', 'SMA_50']].tail(90) 
             st.line_chart(chart_data)
             
-            # न्यूज़ निकालना
             news = stock.news
             news_titles = []
             if news:
@@ -165,7 +189,6 @@ if st.button("Analyze Stock"):
             if not news_titles:
                 news_titles = ["कोई खास खबर नहीं।"]
             
-            # असली AI एनालिसिस कॉल
             st.markdown("### 🤖 Pro AI Analysis")
             analysis = get_ai_analysis(symbol, news_titles, current_price, support, resistance, current_rsi, sma_20_val, sma_50_val, sma_200_val, vol_surge, asset_type)
             st.success(analysis)
@@ -200,7 +223,6 @@ if st.session_state.portfolio_data:
             total_pnl = df_display['P&L'].sum()
             st.metric("कुल लाभ/हानि", f"₹{total_pnl:,.2f}", delta=f"{total_pnl:,.2f}")
             
-            # अग्रेसिव AI बटन
             if st.button("🤖 3-5% मासिक रिटर्न के लिए AI एनालिसिस"):
                 with st.spinner("जेमिनी रणनीति तैयार कर रहा है..."):
                     advice = get_portfolio_analysis(df_display)
