@@ -27,34 +27,39 @@ def detect_bullish_divergence(df):
     except:
         return False, None, None
 
-# --- फंक्शन 2: एडवांस्ड एआई एनालिसिस (SMC + Elliott Wave) ---
-def get_ai_analysis(ticker, news_list, current_price, support, resistance, rsi, sma_20, sma_50, sma_200, vol_surge, divergence_found, poc_price, asset_type):
+# --- फंक्शन 2: एडवांस्ड एआई 'पोस्ट-मॉर्टम' एनालिसिस (SMC + Elliott Wave + Fundamentals) ---
+def get_ai_analysis(ticker, price_data, fund_data, is_div, poc_price, asset_type):
     api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key: return "⚠️ API Key नहीं मिली! Google Cloud चेक करें।"
+    if not api_key: return "⚠️ API Key नहीं मिली!"
 
-    div_msg = "🚨 विशेष ध्यान दें: चार्ट में 'बुलिश डायवर्जेंस' (Bullish Divergence) पाया गया है! यह एक स्ट्रॉन्ग लिक्विडिटी स्वीप और रिवर्सल सिग्नल हो सकता है।" if divergence_found else "कोई स्पष्ट डायवर्जेंस नहीं है।"
+    div_msg = "🚨 अलर्ट: बुलिश डायवर्जेंस पाया गया है!" if is_div else "कोई स्पष्ट डायवर्जेंस नहीं है।"
     cur_sym = "$" if asset_type == "Commodity (Gold/Silver)" else "₹"
     
-    # 🧠 यहाँ जेमिनी के प्रॉम्प्ट में Elliott Wave थ्योरी जोड़ी गई है
     prompt = f"""
-    आप एक टॉप-टियर हेज फंड मैनेजर और इलियट वेव (Elliott Wave) के विशेषज्ञ हैं जो 'Smart Money Concepts' (SMC) का इस्तेमाल करते हैं। {ticker} का गहराई से विश्लेषण करें।
-    डेटा: भाव {current_price}, RSI {rsi}, सपोर्ट {support}, रेजिस्टेंस {resistance}, वॉल्यूम ब्रेकआउट {vol_surge}x.
-    मूविंग एवरेज: 20-Day {sma_20}, 50-Day {sma_50}, 200-Day {sma_200}.
-    स्मार्ट मनी डेटा (POC): पिछले 90 दिनों में सबसे ज्यादा ट्रेडिंग 'Point of Control' {cur_sym}{poc_price} पर हुई है।
-    विशेष सूचना: {div_msg}
-    खबरें: {news_list}
+    आप दुनिया के सबसे बेहतरीन फंडामेंटल और टेक्निकल विश्लेषक हैं। {ticker} का 'पोस्ट-मॉर्टम' विश्लेषण करें।
     
-    कृपया SMC, वॉल्यूम प्रोफाइल और **इलियट वेव थ्योरी (मार्केट स्ट्रक्चर)** के आधार पर हिंदी में एकदम सटीक जवाब दें:
-    1. **मैक्रो स्ट्रक्चर (Macro Structure):** क्या बड़ा ट्रेंड बदल रहा है? (Elliott Wave के A-B-C या 1-5 पैटर्न के नज़रिए से बताएं कि हम अभी किस फेज़ में हो सकते हैं)।
-    2. **सलाह:** (Buy 🚀 / Wait 👁️ / Avoid 🚫 / Short 📉)
-    3. **सटीक एंट्री पॉइंट (Sniper Entry):** इंस्टीट्यूशनल ऑर्डर ब्लॉक्स और POC ({cur_sym}{poc_price}) को देखते हुए सटीक एंट्री ज़ोन बताएं।
-    4. **टार्गेट:** टार्गेट 1, टार्गेट 2, टार्गेट 3 (चार्ट पैटर्न और लिक्विडिटी ग्रैब के आधार पर)।
-    5. **स्टॉप लॉस:** (एकदम सटीक और सुरक्षित लेवल)।
+    1. टेक्निकल डेटा (SMC & Wave):
+    - भाव: {price_data['current_price']} | RSI: {price_data['rsi']}
+    - POC (Smart Money Zone): {cur_sym}{poc_price}
+    - सूचना: {div_msg}
+    
+    2. फंडामेंटल डेटा (Company Health):
+    - P/E Ratio: {fund_data.get('pe', 'N/A')}
+    - Debt-to-Equity (कर्ज): {fund_data.get('debt', 'N/A')}
+    - ROE: {fund_data.get('roe', 'N/A')}%
+    - EPS: {fund_data.get('eps', 'N/A')}
+    - Market Cap: {fund_data.get('mcap', 'N/A')}
+    
+    कृपया इन दोनों को मिलाकर हिंदी में जवाब दें:
+    1. **फंडामेंटल पोस्टमार्टम:** कंपनी आर्थिक रूप से कितनी मजबूत या कमजोर है? क्या भाव महंगा है?
+    2. **मैक्रो स्ट्रक्चर (Wave Analysis):** इलियट वेव के हिसाब से बड़ा ट्रेंड क्या है?
+    3. **The Sniper Entry:** फंडामेंटल्स और POC ({cur_sym}{poc_price}) को मिलाकर बताएं कि 'बेस्ट एंट्री लेवल' क्या है।
+    4. **टार्गेट और स्टॉप लॉस:** अगले 3 टार्गेट और एक सुरक्षित एग्जिट पॉइंट।
+    5. **फाइनल वर्डिक्ट:** निवेश के लिए Buy, Sell, या Wait?
     """
     
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
-    models_to_try = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
-    error_log = []
+    models_to_try = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
     
     for model_name in models_to_try:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
@@ -62,40 +67,11 @@ def get_ai_analysis(ticker, news_list, current_price, support, resistance, rsi, 
             res = requests.post(url, json=payload, headers={'Content-Type': 'application/json'})
             if res.status_code == 200:
                 return res.json()['candidates'][0]['content']['parts'][0]['text']
-            else:
-                error_log.append(f"{model_name}: {res.status_code}")
-        except Exception as e:
-            error_log.append(f"{model_name}: Error")
-            
-    return f"⚠️ AI एनालिसिस फेल हो गया। डिटेल्स: {', '.join(error_log)}"
-
-# --- फंक्शन 3: पोर्टफोलियो एनालिसिस ---
-def get_portfolio_analysis(portfolio_df):
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key: return "⚠️ API Key नहीं मिली!"
-    
-    summary = portfolio_df.to_string(index=False)
-    prompt = f"पोर्टफोलियो मैनेजर के रूप में 3-5% मासिक रिटर्न के लिए इस डेटा का विश्लेषण करें और हिंदी में सुझाव दें:\n{summary}"
-    payload = {"contents": [{"parts": [{"text": prompt}]}]}
-    
-    models_to_try = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
-    error_log = []
-    
-    for model_name in models_to_try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
-        try:
-            res = requests.post(url, json=payload, headers={'Content-Type': 'application/json'})
-            if res.status_code == 200:
-                return res.json()['candidates'][0]['content']['parts'][0]['text']
-            else:
-                error_log.append(f"{model_name}: {res.status_code}")
-        except Exception as e:
-            error_log.append(f"{model_name}: Error")
-            
-    return f"⚠️ पोर्टफोलियो एनालिसिस फेल हो गया। डिटेल्स: {', '.join(error_log)}"
+        except: continue
+    return "AI एनालिसिस अभी उपलब्ध नहीं है।"
 
 # --- सुरक्षा ताला (PIN System) ---
-st.set_page_config(page_title="Advanced SMC & Wave Analyzer", layout="wide")
+st.set_page_config(page_title="Pro Sniper Analyzer", layout="wide")
 
 def check_password():
     correct_pin = os.environ.get("APP_PIN", "1234")
@@ -114,92 +90,85 @@ def check_password():
 if not check_password(): st.stop()
 
 # --- मुख्य ऐप ---
-st.title("Pro SMC, Volume & Elliott Wave Analyzer 🚀")
-
-if 'portfolio_data' not in st.session_state: st.session_state.portfolio_data = None
+st.title("Pro Stock 'Post-Mortem' & Sniper Analyzer 🚀")
 
 asset_type = st.radio("चुनें:", ("Stock (NSE/BSE)", "Commodity (Gold/Silver)"))
 raw_symbol = st.text_input("सिंबल डालें (जैसे RELIANCE, TATAMOTORS):", "RELIANCE")
 
-if st.button("Analyze Stock"):
-    with st.spinner('वॉल्यूम प्रोफाइल, SMC और इलियट वेव स्कैन हो रहे हैं...'):
+if st.button("Deep Analyze Stock"):
+    with st.spinner('डेटा का पोस्टमार्टम हो रहा है...'):
         symbol = raw_symbol.upper().strip()
         if asset_type == "Stock (NSE/BSE)" and not (symbol.endswith('.NS') or symbol.endswith('.BO')): symbol += '.NS'
         
         stock = tk.Ticker(symbol)
         df = stock.history(period="1y")
+        info = stock.info # फंडामेंटल डेटा यहाँ से आता है
         
         if df.empty: st.error("डेटा नहीं मिला।")
         else:
-            # बेसिक इंडिकेटर्स
+            # टेक्निकल कैलकुलेशन
             df['SMA_20'] = df['Close'].rolling(window=20).mean()
-            df['SMA_50'] = df['Close'].rolling(window=50).mean()
             df['SMA_200'] = df['Close'].rolling(window=200).mean()
             delta = df['Close'].diff()
             gain = (delta.where(delta > 0, 0)).ewm(alpha=1/14, adjust=False).mean()
             loss = (-delta.where(delta < 0, 0)).ewm(alpha=1/14, adjust=False).mean()
             df['RSI'] = 100 - (100 / (1 + gain/loss))
-            df['Avg_Volume_20'] = df['Volume'].rolling(window=20).mean()
             
-            # --- SMC: Point of Control (POC) कैलकुलेशन ---
+            # SMC & POC
             recent_90 = df.tail(90).copy()
             counts, bins = np.histogram(recent_90['Close'], bins=15, weights=recent_90['Volume'])
             poc_price = round(bins[np.argmax(counts)], 2)
+            is_div, _, _ = detect_bullish_divergence(df)
             
-            # डायवर्जेंस चेक
-            is_div, d_price, d_rsi = detect_bullish_divergence(df)
-            
-            # चार्ट बनाना
-            fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.05, row_heights=[0.7, 0.3])
-            
-            # Row 1: Candlesticks
-            fig.add_trace(go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name='Market'), row=1, col=1)
-            fig.add_trace(go.Scatter(x=df.index, y=df['SMA_20'], line=dict(color='orange', width=1), name='20 EMA'), row=1, col=1)
-            fig.add_trace(go.Scatter(x=df.index, y=df['SMA_200'], line=dict(color='white', width=1.5), name='200 EMA'), row=1, col=1)
-            
-            # POC (Smart Money Line)
-            fig.add_hline(y=poc_price, line_dash="dash", line_color="yellow", row=1, col=1, annotation_text="POC (Smart Money)", annotation_position="bottom right")
-            
-            # Row 2: RSI
-            fig.add_trace(go.Scatter(x=df.index, y=df['RSI'], line=dict(color='purple'), name='RSI'), row=2, col=1)
-            fig.add_hline(y=70, line_dash="dash", line_color="red", row=2, col=1)
-            fig.add_hline(y=30, line_dash="dash", line_color="green", row=2, col=1)
-            
-            # वीकेंड गैप्स हटाना और ज़ूम
-            zoom_start = df.index[-90] if len(df) > 90 else df.index[0] 
-            zoom_end = df.index[-1]
-            fig.update_xaxes(rangebreaks=[dict(bounds=["sat", "mon"])], range=[zoom_start, zoom_end])
-            
-            fig.update_layout(height=700, template="plotly_dark", xaxis_rangeslider_visible=False, title=f"{symbol} - SMC & Structural Daily Chart")
-            st.plotly_chart(fig, use_container_width=True)
-            
-            # AI रिपोर्ट के लिए डेटा
-            res = round(recent_90['High'].max(), 2)
-            sup = round(recent_90['Low'].min(), 2)
-            price = round(df['Close'].iloc[-1], 2)
-            rsi_val = round(df['RSI'].iloc[-1], 2)
-            vol_surge = round(df['Volume'].iloc[-1] / df['Avg_Volume_20'].iloc[-1], 1) if df['Avg_Volume_20'].iloc[-1] > 0 else 1
-            
-            sma_20_val = round(df['SMA_20'].iloc[-1], 2)
-            sma_50_val = round(df['SMA_50'].iloc[-1], 2)
-            sma_200_val = round(df['SMA_200'].iloc[-1], 2) if not pd.isna(df['SMA_200'].iloc[-1]) else "N/A"
-            
-            st.markdown("### 🤖 Institutional SMC & Elliott Wave Insights")
-            if is_div: st.warning(f"🚀 Bullish Divergence detected at Price: {round(d_price,2)} | RSI: {round(d_rsi,2)}")
-            
-            # जेमिनी को एनालिसिस भेजना
-            ans = get_ai_analysis(symbol, [], price, sup, res, rsi_val, sma_20_val, sma_50_val, sma_200_val, vol_surge, is_div, poc_price, asset_type)
-            st.success(ans)
+            # फंडामेंटल डेटा तैयार करना
+            fund_data = {
+                'pe': info.get('forwardPE', info.get('trailingPE', 'N/A')),
+                'debt': info.get('debtToEquity', 'N/A'),
+                'roe': round(info.get('returnOnEquity', 0) * 100, 2) if info.get('returnOnEquity') else 'N/A',
+                'eps': info.get('trailingEps', 'N/A'),
+                'mcap': f"₹{info.get('marketCap', 0)/10000000:,.2f} Cr" if info.get('marketCap') else 'N/A'
+            }
 
+            # --- UI TABS ---
+            tab1, tab2 = st.tabs(["📉 Advanced Chart & SMC", "📋 Fundamental Box"])
+
+            with tab1:
+                fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.05, row_heights=[0.7, 0.3])
+                fig.add_trace(go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name='Market'), row=1, col=1)
+                fig.add_trace(go.Scatter(x=df.index, y=df['SMA_20'], line=dict(color='orange', width=1), name='20 EMA'), row=1, col=1)
+                fig.add_trace(go.Scatter(x=df.index, y=df['SMA_200'], line=dict(color='white', width=1.5), name='200 EMA'), row=1, col=1)
+                fig.add_hline(y=poc_price, line_dash="dash", line_color="yellow", row=1, col=1, annotation_text="POC (Smart Money)")
+                fig.add_trace(go.Scatter(x=df.index, y=df['RSI'], line=dict(color='purple'), name='RSI'), row=2, col=1)
+                fig.update_layout(height=600, template="plotly_dark", xaxis_rangeslider_visible=False)
+                st.plotly_chart(fig, use_container_width=True)
+
+            with tab2:
+                st.subheader(f"📊 {symbol} Fundamentals")
+                col1, col2, col3 = st.columns(3)
+                col1.metric("P/E Ratio", fund_data['pe'])
+                col2.metric("Debt-to-Equity", fund_data['debt'])
+                col3.metric("Return on Equity (ROE)", f"{fund_data['roe']}%")
+                
+                col4, col5 = st.columns(2)
+                col4.metric("Market Cap", fund_data['mcap'])
+                col5.metric("Trailing EPS", fund_data['eps'])
+                
+                st.info("💡 प्रो टिप: कम P/E और कम Debt वाली कंपनी को POC के पास खरीदना सबसे सुरक्षित होता है।")
+
+            # --- AI Insights ---
+            st.markdown("---")
+            st.subheader("🤖 AI Sniper Post-Mortem Report")
+            price_data = {'current_price': round(df['Close'].iloc[-1], 2), 'rsi': round(df['RSI'].iloc[-1], 2)}
+            vol_surge = round(df['Volume'].iloc[-1] / df['Volume'].rolling(20).mean().iloc[-1], 1)
+            
+            report = get_ai_analysis(symbol, price_data, fund_data, is_div, poc_price, asset_type)
+            st.success(report)
+
+# --- पोर्टफोलियो सेक्शन ---
 st.divider()
 st.subheader("📊 मेरा Angel One पोर्टफोलियो")
-if st.button("पोर्टफोलियो लोड करें"): st.session_state.portfolio_data = fetch_my_portfolio()
-
-if st.session_state.portfolio_data:
-    my_data = st.session_state.portfolio_data
-    if "error" not in my_data:
-        df_p = pd.DataFrame(my_data)
-        st.dataframe(df_p[['tradingsymbol', 'quantity', 'ltp', 'profitandloss']], use_container_width=True)
-        if st.button("🤖 3-5% मासिक रिटर्न के लिए AI एनालिसिस"):
-            with st.spinner("जेमिनी रणनीति तैयार कर रहा है..."):
-                st.info(get_portfolio_analysis(df_p))
+if st.button("लोड करें"):
+    st.session_state.portfolio_data = fetch_my_portfolio()
+if 'portfolio_data' in st.session_state and st.session_state.portfolio_data:
+    df_p = pd.DataFrame(st.session_state.portfolio_data)
+    st.dataframe(df_p[['tradingsymbol', 'quantity', 'ltp', 'profitandloss']], use_container_width=True)
