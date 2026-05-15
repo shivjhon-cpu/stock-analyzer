@@ -9,7 +9,7 @@ from plotly.subplots import make_subplots
 from scipy.signal import argrelextrema
 from angel_helper import fetch_my_portfolio
 
-# --- फंक्शन 1: बुलिश डायवर्जेंस डिटेक्शन (गणितीय फॉर्मूला) ---
+# --- फंक्शन 1: बुलिश डायवर्जेंस डिटेक्शन ---
 def detect_bullish_divergence(df):
     try:
         data = df.tail(60).copy()
@@ -21,37 +21,37 @@ def detect_bullish_divergence(df):
         if len(lows) >= 2:
             last_low = lows.iloc[-1]
             prev_low = lows.iloc[-2]
-            
-            # बुलिश डायवर्जेंस: प्राइस नीचे, RSI ऊपर
             if last_low['Close'] < prev_low['Close'] and last_low['RSI'] > prev_low['RSI']:
                 return True, last_low['Close'], last_low['RSI']
         return False, None, None
     except:
         return False, None, None
 
-# --- फंक्शन 2: एडवांस्ड एआई एनालिसिस (Gemini) - फिक्स्ड स्मार्ट लूप ---
-def get_ai_analysis(ticker, news_list, current_price, support, resistance, rsi, sma_20, sma_50, sma_200, vol_surge, divergence_found, asset_type):
+# --- फंक्शन 2: एडवांस्ड एआई एनालिसिस (Gemini) + SMC Sniper Entry ---
+def get_ai_analysis(ticker, news_list, current_price, support, resistance, rsi, sma_20, sma_50, sma_200, vol_surge, divergence_found, poc_price, asset_type):
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key: return "⚠️ API Key नहीं मिली! Google Cloud चेक करें।"
 
-    div_msg = "🚨 विशेष ध्यान दें: चार्ट में 'बुलिश डायवर्जेंस' (Bullish Divergence) पाया गया है (प्राइस में लोअर लो और RSI में हायर लो)। यह एक स्ट्रॉन्ग रिवर्सल सिग्नल है!" if divergence_found else "कोई स्पष्ट डायवर्जेंस नहीं है।"
+    div_msg = "🚨 विशेष ध्यान दें: चार्ट में 'बुलिश डायवर्जेंस' (Bullish Divergence) पाया गया है! यह एक स्ट्रॉन्ग लिक्विडिटी स्वीप और रिवर्सल सिग्नल हो सकता है।" if divergence_found else "कोई स्पष्ट डायवर्जेंस नहीं है।"
+    cur_sym = "$" if asset_type == "Commodity (Gold/Silver)" else "₹"
     
     prompt = f"""
-    आप एक प्रोफेशनल चार्ट विश्लेषक हैं। {ticker} का तकनीकी विश्लेषण करें।
-    डेटा: भाव {current_price}, RSI {rsi}, सपोर्ट {support}, रेजिस्टेंस {resistance}, वॉल्यूम {vol_surge}x.
+    आप एक टॉप-टियर हेज फंड मैनेजर हैं जो 'Smart Money Concepts' (SMC) का इस्तेमाल करते हैं। {ticker} का विश्लेषण करें।
+    डेटा: भाव {current_price}, RSI {rsi}, सपोर्ट {support}, रेजिस्टेंस {resistance}, वॉल्यूम ब्रेकआउट {vol_surge}x.
     मूविंग एवरेज: 20-Day {sma_20}, 50-Day {sma_50}, 200-Day {sma_200}.
+    स्मार्ट मनी डेटा (POC): पिछले 90 दिनों में सबसे ज्यादा ट्रेडिंग 'Point of Control' {cur_sym}{poc_price} पर हुई है।
     विशेष सूचना: {div_msg}
     खबरें: {news_list}
     
-    कृपया कैंडल्स और RSI के आधार पर हिंदी में एकदम सटीक जवाब दें:
+    कृपया SMC और वॉल्यूम प्रोफाइल के आधार पर हिंदी में एकदम सटीक जवाब दें:
     1. **सलाह:** (Buy 🚀 / Wait 👁️ / Avoid 🚫)
-    2. **टार्गेट:** टार्गेट 1, टार्गेट 2, टार्गेट 3 (चार्ट के आधार पर)
-    3. **स्टॉप लॉस:** (एकदम सटीक सपोर्ट लेवल पर)
-    4. **कारण:** क्यों यह बुलिश या बेयरिश है? (RSI और कैंडल्स का जिक्र करें)
+    2. **सटीक एंट्री पॉइंट (Sniper Entry):** इंस्टीट्यूशनल ऑर्डर ब्लॉक्स और POC ({cur_sym}{poc_price}) को देखते हुए बताएं कि मौजूदा भाव पर लेना सही है, या किसी डिमांड ज़ोन (पुलबैक) तक गिरने का इंतज़ार करना चाहिए? (सटीक भाव बताएं)।
+    3. **टार्गेट:** टार्गेट 1, टार्गेट 2, टार्गेट 3 (चार्ट और लिक्विडिटी ग्रैब के आधार पर)।
+    4. **स्टॉप लॉस:** (लिक्विडिटी स्वीप या POC के नीचे एकदम सटीक और सुरक्षित लेवल)।
+    5. **कारण:** यह रणनीति क्यों चुनी गई? (POC और ऑर्डर ब्लॉक का जिक्र करें)।
     """
     
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
-    # अपडेटेड और सबसे सुरक्षित मॉडल्स की लिस्ट (पुराने नाम हटा दिए गए हैं)
     models_to_try = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
     error_log = []
     
@@ -68,7 +68,7 @@ def get_ai_analysis(ticker, news_list, current_price, support, resistance, rsi, 
             
     return f"⚠️ AI एनालिसिस फेल हो गया। डिटेल्स: {', '.join(error_log)}"
 
-# --- फंक्शन 3: पोर्टफोलियो एनालिसिस - फिक्स्ड स्मार्ट लूप ---
+# --- फंक्शन 3: पोर्टफोलियो एनालिसिस ---
 def get_portfolio_analysis(portfolio_df):
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key: return "⚠️ API Key नहीं मिली!"
@@ -94,7 +94,7 @@ def get_portfolio_analysis(portfolio_df):
     return f"⚠️ पोर्टफोलियो एनालिसिस फेल हो गया। डिटेल्स: {', '.join(error_log)}"
 
 # --- सुरक्षा ताला (PIN System) ---
-st.set_page_config(page_title="Advanced AI Analyzer", layout="wide")
+st.set_page_config(page_title="Advanced SMC Analyzer", layout="wide")
 
 def check_password():
     correct_pin = os.environ.get("APP_PIN", "1234")
@@ -113,7 +113,7 @@ def check_password():
 if not check_password(): st.stop()
 
 # --- मुख्य ऐप ---
-st.title("Advanced AI Stock & Chart Analyzer 🚀")
+st.title("Pro SMC & Volume Stock Analyzer 🚀")
 
 if 'portfolio_data' not in st.session_state: st.session_state.portfolio_data = None
 
@@ -121,7 +121,7 @@ asset_type = st.radio("चुनें:", ("Stock (NSE/BSE)", "Commodity (Gold/S
 raw_symbol = st.text_input("सिंबल डालें (जैसे RELIANCE, TATAMOTORS):", "RELIANCE")
 
 if st.button("Analyze Stock"):
-    with st.spinner('चार्ट और डायवर्जेंस स्कैन हो रहा है...'):
+    with st.spinner('वॉल्यूम प्रोफाइल और स्मार्ट मनी ज़ोन स्कैन हो रहे हैं...'):
         symbol = raw_symbol.upper().strip()
         if asset_type == "Stock (NSE/BSE)" and not (symbol.endswith('.NS') or symbol.endswith('.BO')): symbol += '.NS'
         
@@ -130,7 +130,7 @@ if st.button("Analyze Stock"):
         
         if df.empty: st.error("डेटा नहीं मिला।")
         else:
-            # इंडिकेटर्स की गणना
+            # बेसिक इंडिकेटर्स
             df['SMA_20'] = df['Close'].rolling(window=20).mean()
             df['SMA_50'] = df['Close'].rolling(window=50).mean()
             df['SMA_200'] = df['Close'].rolling(window=200).mean()
@@ -140,35 +140,41 @@ if st.button("Analyze Stock"):
             df['RSI'] = 100 - (100 / (1 + gain/loss))
             df['Avg_Volume_20'] = df['Volume'].rolling(window=20).mean()
             
+            # --- SMC: Point of Control (POC) कैलकुलेशन ---
+            recent_90 = df.tail(90).copy()
+            counts, bins = np.histogram(recent_90['Close'], bins=15, weights=recent_90['Volume'])
+            poc_price = round(bins[np.argmax(counts)], 2)
+            
             # डायवर्जेंस चेक
             is_div, d_price, d_rsi = detect_bullish_divergence(df)
             
-            # चार्ट बनाना (Subplots)
-            fig = make_subplots(rows=2, cols=1, shared_xaxes=True, 
-                               vertical_spacing=0.05, row_heights=[0.7, 0.3])
+            # चार्ट बनाना
+            fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.05, row_heights=[0.7, 0.3])
             
             # Row 1: Candlesticks
-            fig.add_trace(go.Candlestick(x=df.index, open=df['Open'], high=df['High'], 
-                                        low=df['Low'], close=df['Close'], name='Market'), row=1, col=1)
+            fig.add_trace(go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name='Market'), row=1, col=1)
             fig.add_trace(go.Scatter(x=df.index, y=df['SMA_20'], line=dict(color='orange', width=1), name='20 EMA'), row=1, col=1)
             fig.add_trace(go.Scatter(x=df.index, y=df['SMA_200'], line=dict(color='white', width=1.5), name='200 EMA'), row=1, col=1)
+            
+            # POC (Smart Money Line) प्लॉट करना
+            fig.add_hline(y=poc_price, line_dash="dash", line_color="yellow", row=1, col=1, annotation_text="POC (Smart Money)", annotation_position="bottom right")
             
             # Row 2: RSI
             fig.add_trace(go.Scatter(x=df.index, y=df['RSI'], line=dict(color='purple'), name='RSI'), row=2, col=1)
             fig.add_hline(y=70, line_dash="dash", line_color="red", row=2, col=1)
             fig.add_hline(y=30, line_dash="dash", line_color="green", row=2, col=1)
             
-            # वीकेंड गैप्स हटाना और ज़ूम सेट करना (TradingView Look)
+            # वीकेंड गैप्स हटाना और ज़ूम
             zoom_start = df.index[-90] if len(df) > 90 else df.index[0] 
             zoom_end = df.index[-1]
             fig.update_xaxes(rangebreaks=[dict(bounds=["sat", "mon"])], range=[zoom_start, zoom_end])
             
-            fig.update_layout(height=700, template="plotly_dark", xaxis_rangeslider_visible=False, title=f"{symbol} - Daily Chart")
+            fig.update_layout(height=700, template="plotly_dark", xaxis_rangeslider_visible=False, title=f"{symbol} - SMC Daily Chart")
             st.plotly_chart(fig, use_container_width=True)
             
-            # AI रिपोर्ट के लिए डेटा तैयार करना
-            res = round(df.tail(60)['High'].max(), 2)
-            sup = round(df.tail(60)['Low'].min(), 2)
+            # AI रिपोर्ट के लिए डेटा
+            res = round(recent_90['High'].max(), 2)
+            sup = round(recent_90['Low'].min(), 2)
             price = round(df['Close'].iloc[-1], 2)
             rsi_val = round(df['RSI'].iloc[-1], 2)
             vol_surge = round(df['Volume'].iloc[-1] / df['Avg_Volume_20'].iloc[-1], 1) if df['Avg_Volume_20'].iloc[-1] > 0 else 1
@@ -177,12 +183,11 @@ if st.button("Analyze Stock"):
             sma_50_val = round(df['SMA_50'].iloc[-1], 2)
             sma_200_val = round(df['SMA_200'].iloc[-1], 2) if not pd.isna(df['SMA_200'].iloc[-1]) else "N/A"
             
-            news_titles = ["चार्ट पैटर्न और डायवर्जेंस ब्रेकआउट पर फोकस करें।"]
-            
-            st.markdown("### 🤖 Pro AI Insights")
+            st.markdown("### 🤖 Institutional SMC Insights")
             if is_div: st.warning(f"🚀 Bullish Divergence detected at Price: {round(d_price,2)} | RSI: {round(d_rsi,2)}")
             
-            ans = get_ai_analysis(symbol, news_titles, price, sup, res, rsi_val, sma_20_val, sma_50_val, sma_200_val, vol_surge, is_div, asset_type)
+            # जेमिनी को नया 'POC' डेटा भेजना
+            ans = get_ai_analysis(symbol, [], price, sup, res, rsi_val, sma_20_val, sma_50_val, sma_200_val, vol_surge, is_div, poc_price, asset_type)
             st.success(ans)
 
 st.divider()
