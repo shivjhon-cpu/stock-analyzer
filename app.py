@@ -29,7 +29,6 @@ def detect_bullish_divergence(df):
 
 # --- फंक्शन 2: एडवांस्ड एआई 'पोस्ट-मॉर्टम' (SMC + Wave + Fundamentals) ---
 def get_ai_analysis(ticker, price_data, fund_data, is_div, poc_price, asset_type):
-    # .strip() जोड़ा गया है ताकि API Key के स्पेस साफ हो जाएं
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key: return "⚠️ API Key नहीं मिली! Google Cloud में GEMINI_API_KEY चेक करें।"
 
@@ -54,8 +53,8 @@ def get_ai_analysis(ticker, price_data, fund_data, is_div, poc_price, asset_type
     
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
     
-    # 🟢 404 एरर को रोकने के लिए 'latest' टैग वाले सबसे सुरक्षित मॉडल नाम इस्तेमाल किए गए हैं
-    models_to_try = ["gemini-1.5-flash-latest", "gemini-1.5-pro-latest", "gemini-1.5-flash"]
+    # 🟢 यहाँ मैंने 404 वाले पुराने नाम हटाकर, सही काम करने वाले लेटेस्ट मॉडल्स डाल दिए हैं
+    models_to_try = ["gemini-2.0-flash", "gemini-2.5-flash"]
     error_log = []
     
     for model_name in models_to_try:
@@ -80,7 +79,8 @@ def get_portfolio_analysis(portfolio_df):
     prompt = f"पोर्टफोलियो मैनेजर के रूप में 3-5% मासिक रिटर्न के लिए इस डेटा का विश्लेषण करें और हिंदी में सुझाव दें:\n{summary}"
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
     
-    models_to_try = ["gemini-1.5-flash-latest", "gemini-1.5-pro-latest", "gemini-1.5-flash"]
+    # 🟢 यहाँ भी सही मॉडल्स फिक्स किए गए हैं
+    models_to_try = ["gemini-2.0-flash", "gemini-2.5-flash"]
     error_log = []
     
     for model_name in models_to_try:
