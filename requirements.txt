@@ -14,3 +14,5 @@ pyotp
 python-dotenv
 logzero
 websocket-client
+plotly
+scipy
