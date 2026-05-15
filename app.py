@@ -29,7 +29,7 @@ def detect_bullish_divergence(df):
     except:
         return False, None, None
 
-# --- फंक्शन 2: एडवांस्ड एआई एनालिसिस (Gemini) ---
+# --- फंक्शन 2: एडवांस्ड एआई एनालिसिस (Gemini) - फिक्स्ड स्मार्ट लूप ---
 def get_ai_analysis(ticker, news_list, current_price, support, resistance, rsi, sma_20, sma_50, sma_200, vol_surge, divergence_found, asset_type):
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key: return "⚠️ API Key नहीं मिली! Google Cloud चेक करें।"
@@ -51,9 +51,9 @@ def get_ai_analysis(ticker, news_list, current_price, support, resistance, rsi, 
     """
     
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
-    # सबसे भरोसेमंद मॉडल लिस्ट
-    models_to_try = ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.0-flash", "gemini-pro"]
-    last_error = ""
+    # अपडेटेड और सबसे सुरक्षित मॉडल्स की लिस्ट (पुराने नाम हटा दिए गए हैं)
+    models_to_try = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
+    error_log = []
     
     for model_name in models_to_try:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
@@ -62,24 +62,36 @@ def get_ai_analysis(ticker, news_list, current_price, support, resistance, rsi, 
             if res.status_code == 200:
                 return res.json()['candidates'][0]['content']['parts'][0]['text']
             else:
-                last_error = f"({res.status_code}) {res.text}"
+                error_log.append(f"{model_name}: {res.status_code}")
         except Exception as e:
-            last_error = str(e)
+            error_log.append(f"{model_name}: Error")
             
-    return f"⚠️ AI एनालिसिस फेल हो गया। आखिरी एरर: {last_error}"
+    return f"⚠️ AI एनालिसिस फेल हो गया। डिटेल्स: {', '.join(error_log)}"
 
-# --- फंक्शन 3: पोर्टफोलियो एनालिसिस ---
+# --- फंक्शन 3: पोर्टफोलियो एनालिसिस - फिक्स्ड स्मार्ट लूप ---
 def get_portfolio_analysis(portfolio_df):
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key: return "⚠️ API Key नहीं मिली!"
+    
     summary = portfolio_df.to_string(index=False)
     prompt = f"पोर्टफोलियो मैनेजर के रूप में 3-5% मासिक रिटर्न के लिए इस डेटा का विश्लेषण करें और हिंदी में सुझाव दें:\n{summary}"
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
-    try:
-        res = requests.post(url, json=payload, headers={'Content-Type': 'application/json'})
-        return res.json()['candidates'][0]['content']['parts'][0]['text']
-    except: return "पोर्टफोलियो एरर।"
+    
+    models_to_try = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]
+    error_log = []
+    
+    for model_name in models_to_try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+        try:
+            res = requests.post(url, json=payload, headers={'Content-Type': 'application/json'})
+            if res.status_code == 200:
+                return res.json()['candidates'][0]['content']['parts'][0]['text']
+            else:
+                error_log.append(f"{model_name}: {res.status_code}")
+        except Exception as e:
+            error_log.append(f"{model_name}: Error")
+            
+    return f"⚠️ पोर्टफोलियो एनालिसिस फेल हो गया। डिटेल्स: {', '.join(error_log)}"
 
 # --- सुरक्षा ताला (PIN System) ---
 st.set_page_config(page_title="Advanced AI Analyzer", layout="wide")
@@ -146,8 +158,8 @@ if st.button("Analyze Stock"):
             fig.add_hline(y=70, line_dash="dash", line_color="red", row=2, col=1)
             fig.add_hline(y=30, line_dash="dash", line_color="green", row=2, col=1)
             
-            # 🟢 वीकेंड गैप्स हटाना और ज़ूम सेट करना (TradingView Look)
-            zoom_start = df.index[-90] if len(df) > 90 else df.index[0] # पिछले 3 महीने
+            # वीकेंड गैप्स हटाना और ज़ूम सेट करना (TradingView Look)
+            zoom_start = df.index[-90] if len(df) > 90 else df.index[0] 
             zoom_end = df.index[-1]
             fig.update_xaxes(rangebreaks=[dict(bounds=["sat", "mon"])], range=[zoom_start, zoom_end])
             
@@ -183,4 +195,5 @@ if st.session_state.portfolio_data:
         df_p = pd.DataFrame(my_data)
         st.dataframe(df_p[['tradingsymbol', 'quantity', 'ltp', 'profitandloss']], use_container_width=True)
         if st.button("🤖 3-5% मासिक रिटर्न के लिए AI एनालिसिस"):
-            st.info(get_portfolio_analysis(df_p))
+            with st.spinner("जेमिनी रणनीति तैयार कर रहा है..."):
+                st.info(get_portfolio_analysis(df_p))
