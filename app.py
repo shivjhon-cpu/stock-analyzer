@@ -12,10 +12,8 @@ from angel_helper import fetch_my_portfolio
 # --- फंक्शन 1: बुलिश डायवर्जेंस डिटेक्शन (गणितीय फॉर्मूला) ---
 def detect_bullish_divergence(df):
     try:
-        # पिछले 60 दिनों का डेटा लें
         data = df.tail(60).copy()
-        # लोकल मिनिमा (खाइयाँ) ढूँढें
-        n = 5 # विंडो साइज
+        n = 5 
         data['min_price'] = data['Close'].iloc[argrelextrema(data['Close'].values, np.less_indicator, order=n)[0]]
         data['min_rsi'] = data['RSI'].iloc[argrelextrema(data['RSI'].values, np.less_indicator, order=n)[0]]
         
@@ -24,7 +22,7 @@ def detect_bullish_divergence(df):
             last_low = lows.iloc[-1]
             prev_low = lows.iloc[-2]
             
-            # बुलिश डायवर्जेंस शर्त: प्राइस का लो नीचे गिरा, पर RSI का लो ऊपर बढ़ा
+            # बुलिश डायवर्जेंस: प्राइस नीचे, RSI ऊपर
             if last_low['Close'] < prev_low['Close'] and last_low['RSI'] > prev_low['RSI']:
                 return True, last_low['Close'], last_low['RSI']
         return False, None, None
@@ -34,24 +32,28 @@ def detect_bullish_divergence(df):
 # --- फंक्शन 2: एडवांस्ड एआई एनालिसिस (Gemini) ---
 def get_ai_analysis(ticker, news_list, current_price, support, resistance, rsi, sma_20, sma_50, sma_200, vol_surge, divergence_found, asset_type):
     api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key: return "⚠️ API Key नहीं मिली!"
+    if not api_key: return "⚠️ API Key नहीं मिली! Google Cloud चेक करें।"
 
-    div_msg = "बुलिश डायवर्जेंस (Bullish Divergence) पाया गया है!" if divergence_found else "कोई स्पष्ट डायवर्जेंस नहीं है।"
+    div_msg = "🚨 विशेष ध्यान दें: चार्ट में 'बुलिश डायवर्जेंस' (Bullish Divergence) पाया गया है (प्राइस में लोअर लो और RSI में हायर लो)। यह एक स्ट्रॉन्ग रिवर्सल सिग्नल है!" if divergence_found else "कोई स्पष्ट डायवर्जेंस नहीं है।"
     
     prompt = f"""
-    आप एक प्रोफेशनल चार्ट विश्लेषक हैं। {ticker} का विश्लेषण करें।
+    आप एक प्रोफेशनल चार्ट विश्लेषक हैं। {ticker} का तकनीकी विश्लेषण करें।
     डेटा: भाव {current_price}, RSI {rsi}, सपोर्ट {support}, रेजिस्टेंस {resistance}, वॉल्यूम {vol_surge}x.
+    मूविंग एवरेज: 20-Day {sma_20}, 50-Day {sma_50}, 200-Day {sma_200}.
     विशेष सूचना: {div_msg}
+    खबरें: {news_list}
     
-    कृपया कैंडल्स और RSI के आधार पर हिंदी में जवाब दें:
-    1. सलाह (Buy/Wait/Avoid)
-    2. टार्गेट 1, टार्गेट 2, टार्गेट 3 (चार्ट के आधार पर)
-    3. स्टॉप लॉस (एकदम सटीक स्तर)
-    4. कारण: क्यों यह बुलिस या बेयरिश है?
+    कृपया कैंडल्स और RSI के आधार पर हिंदी में एकदम सटीक जवाब दें:
+    1. **सलाह:** (Buy 🚀 / Wait 👁️ / Avoid 🚫)
+    2. **टार्गेट:** टार्गेट 1, टार्गेट 2, टार्गेट 3 (चार्ट के आधार पर)
+    3. **स्टॉप लॉस:** (एकदम सटीक सपोर्ट लेवल पर)
+    4. **कारण:** क्यों यह बुलिश या बेयरिश है? (RSI और कैंडल्स का जिक्र करें)
     """
     
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
-    models_to_try = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-pro"]
+    # सबसे भरोसेमंद मॉडल लिस्ट
+    models_to_try = ["gemini-1.5-pro", "gemini-1.5-flash", "gemini-2.0-flash", "gemini-pro"]
+    last_error = ""
     
     for model_name in models_to_try:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
@@ -59,8 +61,12 @@ def get_ai_analysis(ticker, news_list, current_price, support, resistance, rsi, 
             res = requests.post(url, json=payload, headers={'Content-Type': 'application/json'})
             if res.status_code == 200:
                 return res.json()['candidates'][0]['content']['parts'][0]['text']
-        except: continue
-    return "AI एनालिसिस अभी उपलब्ध नहीं है।"
+            else:
+                last_error = f"({res.status_code}) {res.text}"
+        except Exception as e:
+            last_error = str(e)
+            
+    return f"⚠️ AI एनालिसिस फेल हो गया। आखिरी एरर: {last_error}"
 
 # --- फंक्शन 3: पोर्टफोलियो एनालिसिस ---
 def get_portfolio_analysis(portfolio_df):
@@ -100,7 +106,7 @@ st.title("Advanced AI Stock & Chart Analyzer 🚀")
 if 'portfolio_data' not in st.session_state: st.session_state.portfolio_data = None
 
 asset_type = st.radio("चुनें:", ("Stock (NSE/BSE)", "Commodity (Gold/Silver)"))
-raw_symbol = st.text_input("सिंबल डालें:", "VEDL")
+raw_symbol = st.text_input("सिंबल डालें (जैसे RELIANCE, TATAMOTORS):", "RELIANCE")
 
 if st.button("Analyze Stock"):
     with st.spinner('चार्ट और डायवर्जेंस स्कैन हो रहा है...'):
@@ -112,7 +118,7 @@ if st.button("Analyze Stock"):
         
         if df.empty: st.error("डेटा नहीं मिला।")
         else:
-            # इंडिकेटर्स
+            # इंडिकेटर्स की गणना
             df['SMA_20'] = df['Close'].rolling(window=20).mean()
             df['SMA_50'] = df['Close'].rolling(window=50).mean()
             df['SMA_200'] = df['Close'].rolling(window=200).mean()
@@ -120,6 +126,7 @@ if st.button("Analyze Stock"):
             gain = (delta.where(delta > 0, 0)).ewm(alpha=1/14, adjust=False).mean()
             loss = (-delta.where(delta < 0, 0)).ewm(alpha=1/14, adjust=False).mean()
             df['RSI'] = 100 - (100 / (1 + gain/loss))
+            df['Avg_Volume_20'] = df['Volume'].rolling(window=20).mean()
             
             # डायवर्जेंस चेक
             is_div, d_price, d_rsi = detect_bullish_divergence(df)
@@ -139,31 +146,41 @@ if st.button("Analyze Stock"):
             fig.add_hline(y=70, line_dash="dash", line_color="red", row=2, col=1)
             fig.add_hline(y=30, line_dash="dash", line_color="green", row=2, col=1)
             
-            fig.update_layout(height=600, template="plotly_dark", xaxis_rangeslider_visible=False)
+            # 🟢 वीकेंड गैप्स हटाना और ज़ूम सेट करना (TradingView Look)
+            zoom_start = df.index[-90] if len(df) > 90 else df.index[0] # पिछले 3 महीने
+            zoom_end = df.index[-1]
+            fig.update_xaxes(rangebreaks=[dict(bounds=["sat", "mon"])], range=[zoom_start, zoom_end])
+            
+            fig.update_layout(height=700, template="plotly_dark", xaxis_rangeslider_visible=False, title=f"{symbol} - Daily Chart")
             st.plotly_chart(fig, use_container_width=True)
             
-            # AI रिपोर्ट
-            st.markdown("### 🤖 Pro AI Insights")
-            if is_div: st.warning(f"🚀 Bullish Divergence detected at Price: {round(d_price,2)} | RSI: {round(d_rsi,2)}")
-            
-            # बाकी डेटा
+            # AI रिपोर्ट के लिए डेटा तैयार करना
             res = round(df.tail(60)['High'].max(), 2)
             sup = round(df.tail(60)['Low'].min(), 2)
             price = round(df['Close'].iloc[-1], 2)
             rsi_val = round(df['RSI'].iloc[-1], 2)
-            vol_surge = round(df['Volume'].iloc[-1] / df['Volume'].rolling(20).mean().iloc[-1], 1)
+            vol_surge = round(df['Volume'].iloc[-1] / df['Avg_Volume_20'].iloc[-1], 1) if df['Avg_Volume_20'].iloc[-1] > 0 else 1
             
-            ans = get_ai_analysis(symbol, [], price, sup, res, rsi_val, 0, 0, 0, vol_surge, is_div, asset_type)
+            sma_20_val = round(df['SMA_20'].iloc[-1], 2)
+            sma_50_val = round(df['SMA_50'].iloc[-1], 2)
+            sma_200_val = round(df['SMA_200'].iloc[-1], 2) if not pd.isna(df['SMA_200'].iloc[-1]) else "N/A"
+            
+            news_titles = ["चार्ट पैटर्न और डायवर्जेंस ब्रेकआउट पर फोकस करें।"]
+            
+            st.markdown("### 🤖 Pro AI Insights")
+            if is_div: st.warning(f"🚀 Bullish Divergence detected at Price: {round(d_price,2)} | RSI: {round(d_rsi,2)}")
+            
+            ans = get_ai_analysis(symbol, news_titles, price, sup, res, rsi_val, sma_20_val, sma_50_val, sma_200_val, vol_surge, is_div, asset_type)
             st.success(ans)
 
 st.divider()
 st.subheader("📊 मेरा Angel One पोर्टफोलियो")
-if st.button("लोड करें"): st.session_state.portfolio_data = fetch_my_portfolio()
+if st.button("पोर्टफोलियो लोड करें"): st.session_state.portfolio_data = fetch_my_portfolio()
 
 if st.session_state.portfolio_data:
     my_data = st.session_state.portfolio_data
     if "error" not in my_data:
         df_p = pd.DataFrame(my_data)
         st.dataframe(df_p[['tradingsymbol', 'quantity', 'ltp', 'profitandloss']], use_container_width=True)
-        if st.button("🤖 AI पोर्टफोलियो एनालिसिस"):
+        if st.button("🤖 3-5% मासिक रिटर्न के लिए AI एनालिसिस"):
             st.info(get_portfolio_analysis(df_p))
