@@ -29,7 +29,8 @@ def detect_bullish_divergence(df):
 
 # --- फंक्शन 2: एडवांस्ड एआई 'पोस्ट-मॉर्टम' (SMC + Wave + Fundamentals) ---
 def get_ai_analysis(ticker, price_data, fund_data, is_div, poc_price, asset_type):
-    api_key = os.environ.get("GEMINI_API_KEY")
+    # .strip() जोड़ा गया है ताकि API Key के स्पेस साफ हो जाएं
+    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
     if not api_key: return "⚠️ API Key नहीं मिली! Google Cloud में GEMINI_API_KEY चेक करें।"
 
     div_msg = "🚨 विशेष: बुलिश डायवर्जेंस पाया गया है!" if is_div else "कोई स्पष्ट डायवर्जेंस नहीं है।"
@@ -52,22 +53,48 @@ def get_ai_analysis(ticker, price_data, fund_data, is_div, poc_price, asset_type
     """
     
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
-    # विश्वसनीय मॉडल्स की लिस्ट
-    models_to_try = ["gemini-2.0-flash-exp", "gemini-1.5-flash", "gemini-1.5-pro"]
+    
+    # 🟢 404 एरर को रोकने के लिए 'latest' टैग वाले सबसे सुरक्षित मॉडल नाम इस्तेमाल किए गए हैं
+    models_to_try = ["gemini-1.5-flash-latest", "gemini-1.5-pro-latest", "gemini-1.5-flash"]
     error_log = []
     
     for model_name in models_to_try:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
         try:
-            res = requests.post(url, json=payload, headers={'Content-Type': 'application/json'}, timeout=10)
+            res = requests.post(url, json=payload, headers={'Content-Type': 'application/json'}, timeout=15)
             if res.status_code == 200:
                 return res.json()['candidates'][0]['content']['parts'][0]['text']
             else:
                 error_log.append(f"{model_name}({res.status_code})")
-        except:
+        except Exception as e:
             error_log.append(f"{model_name}(Error)")
             
-    return f"⚠️ AI एनालिसिस फेल। कारण: {', '.join(error_log)}. कृपया 1 मिनट बाद फिर से 'Analyze' दबाएं।"
+    return f"⚠️ AI एनालिसिस फेल। कारण: {', '.join(error_log)}."
+
+# --- फंक्शन 3: पोर्टफोलियो एनालिसिस ---
+def get_portfolio_analysis(portfolio_df):
+    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    if not api_key: return "⚠️ API Key नहीं मिली!"
+    
+    summary = portfolio_df.to_string(index=False)
+    prompt = f"पोर्टफोलियो मैनेजर के रूप में 3-5% मासिक रिटर्न के लिए इस डेटा का विश्लेषण करें और हिंदी में सुझाव दें:\n{summary}"
+    payload = {"contents": [{"parts": [{"text": prompt}]}]}
+    
+    models_to_try = ["gemini-1.5-flash-latest", "gemini-1.5-pro-latest", "gemini-1.5-flash"]
+    error_log = []
+    
+    for model_name in models_to_try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
+        try:
+            res = requests.post(url, json=payload, headers={'Content-Type': 'application/json'}, timeout=15)
+            if res.status_code == 200:
+                return res.json()['candidates'][0]['content']['parts'][0]['text']
+            else:
+                error_log.append(f"{model_name}({res.status_code})")
+        except Exception as e:
+            error_log.append(f"{model_name}(Error)")
+            
+    return f"⚠️ पोर्टफोलियो एनालिसिस फेल। डिटेल्स: {', '.join(error_log)}"
 
 # --- सुरक्षा ताला (PIN System) ---
 st.set_page_config(page_title="Pro Sniper Analyzer", layout="wide")
@@ -102,7 +129,6 @@ if st.button("Deep Analyze Stock"):
         stock = tk.Ticker(symbol)
         df = stock.history(period="1y")
         
-        # फंडामेंटल डेटा फेच करना (सुधारे हुए तरीके से)
         try:
             info = stock.info
             if not info:
@@ -172,3 +198,6 @@ if st.button("पोर्टफोलियो लोड करें"): st.ses
 if 'portfolio_data' in st.session_state and st.session_state.portfolio_data:
     df_p = pd.DataFrame(st.session_state.portfolio_data)
     st.dataframe(df_p[['tradingsymbol', 'quantity', 'ltp', 'profitandloss']], use_container_width=True)
+    if st.button("🤖 3-5% मासिक रिटर्न के लिए AI एनालिसिस"):
+        with st.spinner("जेमिनी रणनीति तैयार कर रहा है..."):
+            st.info(get_portfolio_analysis(df_p))
