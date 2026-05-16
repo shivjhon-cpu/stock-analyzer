@@ -53,8 +53,8 @@ def get_ai_analysis(ticker, price_data, fund_data, is_div, poc_price, asset_type
     
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
     
-    # 🟢 2.0 का सर्वर डाउन है, इसलिए सबसे स्टेबल 1.5 मॉडल्स को प्राथमिकता दी गई है
-    models_to_try = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"]
+    # 🟢 404 एरर से बचने के लिए एकदम परमानेंट हार्डकोडेड मॉडल्स
+    models_to_try = ["gemini-1.5-flash-002", "gemini-1.5-flash-8b", "gemini-1.5-pro-002", "gemini-2.0-flash-exp"]
     error_log = []
     
     for model_name in models_to_try:
@@ -79,8 +79,8 @@ def get_portfolio_analysis(portfolio_df):
     prompt = f"पोर्टफोलियो मैनेजर के रूप में 3-5% मासिक रिटर्न के लिए इस डेटा का विश्लेषण करें और हिंदी में सुझाव दें:\n{summary}"
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
     
-    # 🟢 यहाँ भी स्टेबल 1.5 मॉडल्स लगाए गए हैं
-    models_to_try = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"]
+    # 🟢 यहाँ भी परमानेंट हार्डकोडेड मॉडल्स
+    models_to_try = ["gemini-1.5-flash-002", "gemini-1.5-flash-8b", "gemini-1.5-pro-002", "gemini-2.0-flash-exp"]
     error_log = []
     
     for model_name in models_to_try:
