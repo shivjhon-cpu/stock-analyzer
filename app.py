@@ -53,22 +53,19 @@ def get_ai_analysis(ticker, price_data, fund_data, is_div, poc_price, asset_type
     
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
     
-    # 🟢 सिर्फ ऑफिशियल और 100% काम करने वाले मॉडल नाम
-    models_to_try = ["gemini-2.0-flash", "gemini-1.5-flash"]
-    error_log = []
+    # 🟢 सिर्फ और सिर्फ वो मॉडल जो तुम्हारी API Key पर काम कर रहा है
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
     
-    for model_name in models_to_try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
-        try:
-            res = requests.post(url, json=payload, headers={'Content-Type': 'application/json'}, timeout=15)
-            if res.status_code == 200:
-                return res.json()['candidates'][0]['content']['parts'][0]['text']
-            else:
-                error_log.append(f"{model_name}({res.status_code})")
-        except Exception:
-            error_log.append(f"{model_name}(Error)")
-            
-    return f"⚠️ AI एनालिसिस फेल। कारण: {', '.join(error_log)}."
+    try:
+        res = requests.post(url, json=payload, headers={'Content-Type': 'application/json'}, timeout=20)
+        if res.status_code == 200:
+            return res.json()['candidates'][0]['content']['parts'][0]['text']
+        elif res.status_code == 429:
+            return "⏳ **स्मार्ट अलर्ट:** गूगल का फ्री सर्वर अभी थोड़ा व्यस्त है (Rate Limit)। कृपया अपनी घड़ी देखकर पूरे 60 सेकंड रुकें और फिर से 'Analyze' बटन दबाएं।"
+        else:
+            return f"⚠️ AI एनालिसिस फेल। गूगल का सर्वर कोड: {res.status_code}"
+    except Exception as e:
+        return "⚠️ इंटरनेट या सर्वर कनेक्शन में दिक्कत आ रही है।"
 
 # --- फंक्शन 3: पोर्टफोलियो एनालिसिस ---
 def get_portfolio_analysis(portfolio_df):
@@ -79,21 +76,18 @@ def get_portfolio_analysis(portfolio_df):
     prompt = f"पोर्टफोलियो मैनेजर के रूप में 3-5% मासिक रिटर्न के लिए इस डेटा का विश्लेषण करें और हिंदी में सुझाव दें:\n{summary}"
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
     
-    models_to_try = ["gemini-2.0-flash", "gemini-1.5-flash"]
-    error_log = []
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
     
-    for model_name in models_to_try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={api_key}"
-        try:
-            res = requests.post(url, json=payload, headers={'Content-Type': 'application/json'}, timeout=15)
-            if res.status_code == 200:
-                return res.json()['candidates'][0]['content']['parts'][0]['text']
-            else:
-                error_log.append(f"{model_name}({res.status_code})")
-        except Exception:
-            error_log.append(f"{model_name}(Error)")
-            
-    return f"⚠️ पोर्टफोलियो एनालिसिस फेल। डिटेल्स: {', '.join(error_log)}"
+    try:
+        res = requests.post(url, json=payload, headers={'Content-Type': 'application/json'}, timeout=20)
+        if res.status_code == 200:
+            return res.json()['candidates'][0]['content']['parts'][0]['text']
+        elif res.status_code == 429:
+            return "⏳ **स्मार्ट अलर्ट:** कृपया 60 सेकंड रुककर दोबारा कोशिश करें।"
+        else:
+            return f"⚠️ पोर्टफोलियो एनालिसिस फेल। कोड: {res.status_code}"
+    except Exception as e:
+        return "⚠️ कनेक्शन एरर।"
 
 # --- सुरक्षा ताला (PIN System) ---
 st.set_page_config(page_title="Pro Sniper Analyzer", layout="wide")
@@ -188,7 +182,10 @@ if st.button("Deep Analyze Stock"):
             price_data = {'current_price': round(df['Close'].iloc[-1], 2), 'rsi': round(df['RSI'].iloc[-1], 2)}
             
             report = get_ai_analysis(symbol, price_data, fund_data, is_div, poc_price, asset_type)
-            st.success(report)
+            if "स्मार्ट अलर्ट" in report:
+                st.warning(report)
+            else:
+                st.success(report)
 
 # --- पोर्टफोलियो ---
 st.divider()
@@ -199,4 +196,8 @@ if 'portfolio_data' in st.session_state and st.session_state.portfolio_data:
     st.dataframe(df_p[['tradingsymbol', 'quantity', 'ltp', 'profitandloss']], use_container_width=True)
     if st.button("🤖 3-5% मासिक रिटर्न के लिए AI एनालिसिस"):
         with st.spinner("जेमिनी रणनीति तैयार कर रहा है..."):
-            st.info(get_portfolio_analysis(df_p))
+            rep = get_portfolio_analysis(df_p)
+            if "स्मार्ट अलर्ट" in rep:
+                st.warning(rep)
+            else:
+                st.info(rep)
