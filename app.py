@@ -30,7 +30,7 @@ def detect_bullish_divergence(df):
 # --- फंक्शन 2: एडवांस्ड एआई 'पोस्ट-मॉर्टम' (SMC + Wave + Fundamentals) ---
 def get_ai_analysis(ticker, price_data, fund_data, is_div, poc_price, asset_type):
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
-    if not api_key: return "⚠️ API Key नहीं मिली! Streamlit Secrets चेक करें।"
+    if not api_key: return "⚠️ API Key नहीं मिली! Cloud Run के Variables में चेक करें।"
 
     div_msg = "🚨 विशेष: बुलिश डायवर्जेंस पाया गया है!" if is_div else "कोई स्पष्ट डायवर्जेंस नहीं है।"
     cur_sym = "$" if asset_type == "Commodity (Gold/Silver)" else "₹"
@@ -53,8 +53,8 @@ def get_ai_analysis(ticker, price_data, fund_data, is_div, poc_price, asset_type
     
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
     
-    # 🟢 404 एरर से बचने के लिए एकदम परमानेंट हार्डकोडेड मॉडल्स
-    models_to_try = ["gemini-1.5-flash-002", "gemini-1.5-flash-8b", "gemini-1.5-pro-002", "gemini-2.0-flash-exp"]
+    # 🟢 सिर्फ ऑफिशियल और 100% काम करने वाले मॉडल नाम
+    models_to_try = ["gemini-2.0-flash", "gemini-1.5-flash"]
     error_log = []
     
     for model_name in models_to_try:
@@ -65,7 +65,7 @@ def get_ai_analysis(ticker, price_data, fund_data, is_div, poc_price, asset_type
                 return res.json()['candidates'][0]['content']['parts'][0]['text']
             else:
                 error_log.append(f"{model_name}({res.status_code})")
-        except Exception as e:
+        except Exception:
             error_log.append(f"{model_name}(Error)")
             
     return f"⚠️ AI एनालिसिस फेल। कारण: {', '.join(error_log)}."
@@ -79,8 +79,7 @@ def get_portfolio_analysis(portfolio_df):
     prompt = f"पोर्टफोलियो मैनेजर के रूप में 3-5% मासिक रिटर्न के लिए इस डेटा का विश्लेषण करें और हिंदी में सुझाव दें:\n{summary}"
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
     
-    # 🟢 यहाँ भी परमानेंट हार्डकोडेड मॉडल्स
-    models_to_try = ["gemini-1.5-flash-002", "gemini-1.5-flash-8b", "gemini-1.5-pro-002", "gemini-2.0-flash-exp"]
+    models_to_try = ["gemini-2.0-flash", "gemini-1.5-flash"]
     error_log = []
     
     for model_name in models_to_try:
@@ -91,7 +90,7 @@ def get_portfolio_analysis(portfolio_df):
                 return res.json()['candidates'][0]['content']['parts'][0]['text']
             else:
                 error_log.append(f"{model_name}({res.status_code})")
-        except Exception as e:
+        except Exception:
             error_log.append(f"{model_name}(Error)")
             
     return f"⚠️ पोर्टफोलियो एनालिसिस फेल। डिटेल्स: {', '.join(error_log)}"
