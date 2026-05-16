@@ -30,7 +30,7 @@ def detect_bullish_divergence(df):
 # --- फंक्शन 2: एडवांस्ड एआई 'पोस्ट-मॉर्टम' (SMC + Wave + Fundamentals) ---
 def get_ai_analysis(ticker, price_data, fund_data, is_div, poc_price, asset_type):
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
-    if not api_key: return "⚠️ API Key नहीं मिली! Google Cloud में GEMINI_API_KEY चेक करें।"
+    if not api_key: return "⚠️ API Key नहीं मिली! Streamlit Secrets चेक करें।"
 
     div_msg = "🚨 विशेष: बुलिश डायवर्जेंस पाया गया है!" if is_div else "कोई स्पष्ट डायवर्जेंस नहीं है।"
     cur_sym = "$" if asset_type == "Commodity (Gold/Silver)" else "₹"
@@ -53,8 +53,8 @@ def get_ai_analysis(ticker, price_data, fund_data, is_div, poc_price, asset_type
     
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
     
-    # 🟢 यहाँ मैंने 404 वाले पुराने नाम हटाकर, सही काम करने वाले लेटेस्ट मॉडल्स डाल दिए हैं
-    models_to_try = ["gemini-2.0-flash", "gemini-2.5-flash"]
+    # 🟢 2.0 का सर्वर डाउन है, इसलिए सबसे स्टेबल 1.5 मॉडल्स को प्राथमिकता दी गई है
+    models_to_try = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"]
     error_log = []
     
     for model_name in models_to_try:
@@ -79,8 +79,8 @@ def get_portfolio_analysis(portfolio_df):
     prompt = f"पोर्टफोलियो मैनेजर के रूप में 3-5% मासिक रिटर्न के लिए इस डेटा का विश्लेषण करें और हिंदी में सुझाव दें:\n{summary}"
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
     
-    # 🟢 यहाँ भी सही मॉडल्स फिक्स किए गए हैं
-    models_to_try = ["gemini-2.0-flash", "gemini-2.5-flash"]
+    # 🟢 यहाँ भी स्टेबल 1.5 मॉडल्स लगाए गए हैं
+    models_to_try = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"]
     error_log = []
     
     for model_name in models_to_try:
