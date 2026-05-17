@@ -33,40 +33,58 @@ def get_ai_analysis(ticker, price_data, fund_data, is_div, poc_price, asset_type
     if not api_key: return "⚠️ API Key नहीं मिली! Cloud Run के Variables में चेक करें।"
 
     div_msg = "🚨 विशेष: बुलिश डायवर्जेंस पाया गया है!" if is_div else "कोई स्पष्ट डायवर्जेंस नहीं है।"
-    cur_sym = "$" if asset_type == "Commodity (Gold/Silver)" else "₹"
     
-    prompt = f"""
-    आप एक टॉप फंड मैनेजर हैं। {ticker} का इलियट वेव और SMC के आधार पर विश्लेषण करें।
-    
-    डेटा:
-    - भाव: {price_data['current_price']} | RSI: {price_data['rsi']}
-    - POC (Smart Money): {cur_sym}{poc_price}
-    - फंडामेंटल्स: P/E {fund_data.get('pe')}, Debt {fund_data.get('debt')}, ROE {fund_data.get('roe')}%
-    - विशेष: {div_msg}
-    
-    कृपया हिंदी में जवाब दें:
-    1. **मैक्रो स्ट्रक्चर (Wave Analysis):** बड़ा ट्रेंड (A-B-C या 1-5) क्या है?
-    2. **The Sniper Entry:** POC ({cur_sym}{poc_price}) और फंडामेंटल्स के आधार पर 'बेस्ट एंट्री' कहाँ है?
-    3. **टार्गेट और स्टॉप लॉस:** अगले 3 टार्गेट।
-    4. **वर्डिक्ट:** निवेश करें या इंतज़ार?
-    """
+    # 🛠️ कमोडिटी और स्टॉक के लिए अलग-अलग प्रॉम्ट लॉजिक (N/A एरर फिक्स)
+    if asset_type == "Commodity (Gold/Silver)":
+        prompt = f"""
+        आप एक टॉप कमोडिटी एक्सपर्ट हैं। {ticker} का इलियट वेव और SMC के आधार पर विश्लेषण करें।
+        डेटा:
+        - भाव: ${price_data['current_price']} | RSI: {price_data['rsi']}
+        - POC (Smart Money): ${poc_price}
+        - विशेष: {div_msg}
+        कृपया हिंदी में जवाब दें:
+        1. **मैक्रो स्ट्रक्चर (Wave Analysis):** बड़ा ट्रेंड क्या है?
+        2. **The Sniper Entry:** POC (${poc_price}) के आधार पर 'बेस्ट बाइंग ज़ोन' कहाँ है?
+        3. **टार्गेट और स्टॉप लॉस:** अगले 3 टार्गेट।
+        4. **वर्डिक्ट:** खरीदें या इंतज़ार?
+        """
+    else:
+        prompt = f"""
+        आप एक टॉप फंड मैनेजर हैं। {ticker} का इलियट वेव और SMC के आधार पर विश्लेषण करें।
+        डेटा:
+        - भाव: ₹{price_data['current_price']} | RSI: {price_data['rsi']}
+        - POC (Smart Money): ₹{poc_price}
+        - फंडामेंटल्स: P/E {fund_data.get('pe')}, Debt {fund_data.get('debt')}, ROE {fund_data.get('roe')}%
+        - विशेष: {div_msg}
+        कृपया हिंदी में जवाब दें:
+        1. **मैक्रो स्ट्रक्चर (Wave Analysis):** बड़ा ट्रेंड क्या है?
+        2. **The Sniper Entry:** POC (₹{poc_price}) और फंडामेंटल्स के आधार पर 'बेस्ट एंट्री' कहाँ है?
+        3. **टार्गेट और स्टॉप लॉस:** अगले 3 टार्गेट।
+        4. **वर्डिक्ट:** निवेश करें या इंतज़ार?
+        """
     
     payload = {"contents": [{"parts": [{"text": prompt}]}]}
-    
-    # 🟢 सिर्फ और सिर्फ वो मॉडल जो तुम्हारी API Key पर काम कर रहा है
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
     
     try:
         res = requests.post(url, json=payload, headers={'Content-Type': 'application/json'}, timeout=20)
-        if res.status_code == 200:
-            return res.json()['candidates'][0]['content']['parts'][0]['text']
-        elif res.status_code == 429:
-            return "⏳ **स्मार्ट अलर्ट:** गूगल का फ्री सर्वर अभी थोड़ा व्यस्त है (Rate Limit)। कृपया अपनी घड़ी देखकर पूरे 60 सेकंड रुकें और फिर से 'Analyze' बटन दबाएं।"
+        
+        # 🔬 एरर ट्रैकिंग: अगर कोड 200 नहीं है, तो असली सर्वर रिस्पॉन्स दिखाओ
+        if res.status_code != 200:
+            if res.status_code == 429:
+                return "⏳ **स्मार्ट अलर्ट:** गूगल का फ्री सर्वर अभी थोड़ा व्यस्त है (Rate Limit)। कृपया अपनी घड़ी देखकर पूरे 60 सेकंड रुकें और फिर से 'Analyze' बटन दबाएं।"
+            return f"⚠️ गूगल सर्वर एरर! कोड: {res.status_code} | मैसेज: {res.text}"
+            
+        json_data = res.json()
+        
+        # 🔬 फॉर्मेट ट्रैकिंग: चेक करो कि डेटा सही स्ट्रक्चर में आ रहा है या नहीं
+        if 'candidates' in json_data and len(json_data['candidates']) > 0:
+            return json_data['candidates'][0]['content']['parts'][0]['text']
         else:
-            return f"⚠️ AI एनालिसिस फेल। गूगल का सर्वर कोड: {res.status_code}"
+            return f"⚠️ गूगल से रिस्पॉन्स आया, पर फॉर्मेट अलग है: {json_data}"
+            
     except Exception as e:
-        return "⚠️ इंटरनेट या सर्वर कनेक्शन में दिक्कत आ रही है।"
-
+        return f"⚠️ लोकल कोड क्रैश एरर: {str(e)}"
 # --- फंक्शन 3: पोर्टफोलियो एनालिसिस ---
 def get_portfolio_analysis(portfolio_df):
     api_key = os.environ.get("GEMINI_API_KEY", "").strip()
