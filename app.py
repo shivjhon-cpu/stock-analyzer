@@ -200,10 +200,9 @@ if st.button("Deep Analyze Stock"):
             price_data = {'current_price': round(df['Close'].iloc[-1], 2), 'rsi': round(df['RSI'].iloc[-1], 2)}
             
             report = get_ai_analysis(symbol, price_data, fund_data, is_div, poc_price, asset_type)
-            if "स्मार्ट अलर्ट" in report:
-                st.warning(report)
-            else:
-                st.success(report)
+            
+            # पुराना 'if "स्मार्ट अलर्ट"' का चक्कर खत्म, सीधे रिपोर्ट दिखाओ
+            st.info(report)
 
 # --- पोर्टफोलियो ---
 st.divider()
